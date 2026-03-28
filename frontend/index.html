@@ -402,13 +402,24 @@ function uploadCard() {
 function leaderboardCard(lb) {
   if (!lb.length) return `<div class="card"><div class="card-title">Overall Leaderboard</div><p class="empty-state">No data yet — upload some demos.</p></div>`;
 
+  const openPct = p => p.total_opening_attempts
+    ? Math.round(p.total_opening_kills / p.total_opening_attempts * 100) + '%'
+    : '—';
+  const clutchPct = p => p.total_clutch_total
+    ? `${p.total_clutch_won}/${p.total_clutch_total}`
+    : '—';
+
   const rows = lb.map((p, i) => `<tr>
     <td class="rank">#${i + 1}</td>
     <td class="player-name">${esc(p.name || p.steamid)}</td>
     <td>${fmtRating(p.avg_rating)}</td>
     <td>${p.avg_adr ?? '—'}</td>
     <td>${p.avg_kast != null ? p.avg_kast + '%' : '—'}</td>
+    <td>${p.avg_hs_pct != null ? p.avg_hs_pct + '%' : '—'}</td>
     <td class="kd">${p.total_kills}/${p.total_deaths}</td>
+    <td>${openPct(p)}</td>
+    <td>${clutchPct(p)}</td>
+    <td>${p.total_flash_enemies ?? '—'}</td>
     <td class="matches-count">${p.matches_played}</td>
   </tr>`).join('');
 
@@ -417,8 +428,8 @@ function leaderboardCard(lb) {
     <div class="table-wrap">
       <table class="lb-table">
         <thead><tr>
-          <th></th><th>Player</th><th>Avg Rating</th><th>Avg ADR</th>
-          <th>Avg KAST</th><th>K/D</th><th>Matches</th>
+          <th></th><th>Player</th><th>Rating</th><th>ADR</th>
+          <th>KAST</th><th>HS%</th><th>K/D</th><th>Opening%</th><th>Clutch</th><th>Flashes</th><th>Maps</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -548,6 +559,7 @@ async function renderMatchDetail(id) {
     ${detailHeader(data, header)}
     ${detailStats(kills.length, rounds.length, hsRate)}
     ${detailRatings(ratings)}
+    ${detailFlashClutch(ratings)}
     ${rounds.length  ? detailRounds(rounds)         : ''}
     ${kills.length   ? detailKills(kills)            : ''}
     ${detailBomb(data.bomb_events || {})}
@@ -583,21 +595,55 @@ function detailStats(kills, rounds, hsRate) {
   </div></div>`;
 }
 
+function mkBadges(mk) {
+  if (!mk) return '';
+  const labels = { '2': '2K', '3': '3K', '4': '4K', '5': 'ACE' };
+  const colors  = { '2': '#888', '3': '#f0a500', '4': '#5baeff', '5': '#4caf7d' };
+  return Object.entries(mk).map(([k, v]) =>
+    `<span style="background:#111318;border:1px solid ${colors[k]};color:${colors[k]};border-radius:3px;padding:.1rem .35rem;font-size:.7rem;font-weight:700;margin-left:.2rem">${labels[k]}×${v}</span>`
+  ).join('');
+}
+
 function detailRatings(ratings) {
   const ct = ratings.filter(p => p.team === 'CT');
   const t  = ratings.filter(p => p.team === 'TERRORIST');
 
   function rows(list) {
-    return list.map(p => `<div class="rating-row">
-      <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
-      <span class="rating-row-meta">
-        <span>K/D <b>${p.kills}/${p.deaths}</b></span>
-        <span>ADR <b>${p.adr}</b></span>
-        <span>KAST <b>${p.kast}%</b></span>
-      </span>
-      <span class="rating-num ${rClass(p.rating)}">${Number(p.rating).toFixed(2)}</span>
-    </div>`).join('');
+    return list.map(p => {
+      const mk  = typeof p.multi_kills === 'string' ? JSON.parse(p.multi_kills || '{}') : (p.multi_kills || {});
+      const ctR = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
+      const tR  = p.t_rating  != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>`  : '';
+      const clutch = p.clutch_total ? `${p.clutch_won}/${p.clutch_total}` : '';
+      return `<div class="rating-row" style="flex-wrap:wrap;gap:.35rem">
+        <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
+        <span class="rating-row-meta">
+          <span>K/D <b>${p.kills}/${p.deaths}</b></span>
+          <span>ADR <b>${p.adr}</b></span>
+          <span>HS <b>${p.hs_pct ?? '—'}%</b></span>
+          <span>KAST <b>${p.kast}%</b></span>
+          ${p.flash_enemies ? `<span>Flash <b>${p.flash_enemies}</b></span>` : ''}
+          ${clutch ? `<span>Clutch <b>${clutch}</b></span>` : ''}
+        </span>
+        <span style="display:flex;align-items:center;gap:.4rem;margin-left:auto">
+          ${ctR} ${tR}
+          ${mkBadges(mk)}
+          <span class="rating-num ${rClass(p.rating)}">${Number(p.rating).toFixed(2)}</span>
+        </span>
+      </div>`;
+    }).join('');
   }
+
+  // Opening kills table
+  const sorted = [...ratings].sort((a,b) => (b.opening_kills||0) - (a.opening_kills||0));
+  const openers = sorted.filter(p => p.opening_attempts > 0).map(p => {
+    const pct = p.opening_attempts ? Math.round(p.opening_kills / p.opening_attempts * 100) : 0;
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${p.opening_kills ?? 0}</td>
+      <td>${p.opening_attempts ?? 0}</td>
+      <td>${pct}%</td>
+    </tr>`;
+  }).join('');
 
   return `<div class="card">
     <div class="card-title">HLTV 2.0 Rating</div>
@@ -606,6 +652,58 @@ function detailRatings(ratings) {
       <div class="rating-team t"><h3>Terrorists</h3>${rows(t)}</div>
     </div>
     <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>
+
+    ${openers ? `<div style="margin-top:1rem">
+      <div class="card-title" style="margin-bottom:.5rem">Opening Duels</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Player</th><th>Opening Kills</th><th>Duels</th><th>Win%</th></tr></thead>
+        <tbody>${openers}</tbody>
+      </table></div>
+    </div>` : ''}
+  </div>`;
+}
+
+function detailFlashClutch(ratings) {
+  const flashers = [...ratings]
+    .filter(p => p.flash_enemies > 0)
+    .sort((a, b) => b.flash_enemies - a.flash_enemies);
+
+  const clutchers = [...ratings]
+    .filter(p => p.clutch_total > 0)
+    .sort((a, b) => b.clutch_total - a.clutch_total);
+
+  if (!flashers.length && !clutchers.length) return '';
+
+  const flashRows = flashers.map(p => `<tr>
+    <td>${esc(p.name)}</td>
+    <td>${p.flash_enemies}</td>
+    <td>${p.flash_avg_dur != null ? Number(p.flash_avg_dur).toFixed(2) + 's' : '—'}</td>
+  </tr>`).join('');
+
+  const clutchRows = clutchers.map(p => {
+    const pct = Math.round(p.clutch_won / p.clutch_total * 100);
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${p.clutch_won}/${p.clutch_total}</td>
+      <td>${pct}%</td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+    ${flashRows ? `<div>
+      <div class="card-title" style="margin-bottom:.5rem">Flash Effectiveness</div>
+      <table>
+        <thead><tr><th>Player</th><th>Enemies Blinded</th><th>Avg Duration</th></tr></thead>
+        <tbody>${flashRows}</tbody>
+      </table>
+    </div>` : '<div></div>'}
+    ${clutchRows ? `<div>
+      <div class="card-title" style="margin-bottom:.5rem">Clutch Rounds (1vX)</div>
+      <table>
+        <thead><tr><th>Player</th><th>Won/Total</th><th>Win%</th></tr></thead>
+        <tbody>${clutchRows}</tbody>
+      </table>
+    </div>` : '<div></div>'}
   </div>`;
 }
 

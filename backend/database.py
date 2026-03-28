@@ -45,16 +45,50 @@ def init_db(db_path: Path, data_dir: Path) -> None:
             kills         INTEGER,
             deaths        INTEGER,
             assists       INTEGER,
-            rounds_played INTEGER
+            rounds_played INTEGER,
+            hs_pct        REAL,
+            survive_pct   REAL,
+            opening_kills    INTEGER,
+            opening_attempts INTEGER,
+            ct_rating     REAL,
+            ct_rounds     INTEGER,
+            t_rating      REAL,
+            t_rounds      INTEGER,
+            flash_enemies INTEGER,
+            flash_avg_dur REAL,
+            clutch_won    INTEGER,
+            clutch_total  INTEGER,
+            multi_kills   TEXT
         );
 
         CREATE INDEX IF NOT EXISTS idx_pr_match   ON player_ratings(match_id);
         CREATE INDEX IF NOT EXISTS idx_pr_steamid ON player_ratings(steamid);
     """)
-    # Migrate existing DBs that predate the file_hash column
-    existing = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
-    if "file_hash" not in existing:
+    # Migrate existing DBs — add any missing columns
+    existing_matches = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
+    if "file_hash" not in existing_matches:
         conn.execute("ALTER TABLE matches ADD COLUMN file_hash TEXT")
+
+    existing_pr = {r[1] for r in conn.execute("PRAGMA table_info(player_ratings)")}
+    new_pr_cols = {
+        "hs_pct":         "REAL",
+        "survive_pct":    "REAL",
+        "opening_kills":  "INTEGER",
+        "opening_attempts": "INTEGER",
+        "ct_rating":      "REAL",
+        "ct_rounds":      "INTEGER",
+        "t_rating":       "REAL",
+        "t_rounds":       "INTEGER",
+        "flash_enemies":  "INTEGER",
+        "flash_avg_dur":  "REAL",
+        "clutch_won":     "INTEGER",
+        "clutch_total":   "INTEGER",
+        "multi_kills":    "TEXT",
+    }
+    for col, typ in new_pr_cols.items():
+        if col not in existing_pr:
+            conn.execute(f"ALTER TABLE player_ratings ADD COLUMN {col} {typ}")
+
     conn.commit()
     conn.close()
 
@@ -101,14 +135,24 @@ def insert_player_ratings(conn: sqlite3.Connection, match_id: int, ratings: list
     conn.executemany(
         """INSERT INTO player_ratings
            (match_id, steamid, name, team, rating, kast, kpr, dpr, apr, adr,
-            impact, kills, deaths, assists, rounds_played)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            impact, kills, deaths, assists, rounds_played,
+            hs_pct, survive_pct, opening_kills, opening_attempts,
+            ct_rating, ct_rounds, t_rating, t_rounds,
+            flash_enemies, flash_avg_dur, clutch_won, clutch_total, multi_kills)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         [
             (
                 match_id,
                 p["steamid"], p["name"], p["team"],
                 p["rating"], p["kast"], p["kpr"], p["dpr"], p["apr"], p["adr"],
                 p["impact"], p["kills"], p["deaths"], p["assists"], p["rounds"],
+                p.get("hs_pct"), p.get("survive_pct"),
+                p.get("opening_kills"), p.get("opening_attempts"),
+                p.get("ct_rating"), p.get("ct_rounds"),
+                p.get("t_rating"),  p.get("t_rounds"),
+                p.get("flash_enemies"), p.get("flash_avg_dur"),
+                p.get("clutch_won"), p.get("clutch_total"),
+                json.dumps(p.get("multi_kills") or {}),
             )
             for p in ratings
         ],
@@ -225,10 +269,16 @@ def get_leaderboard(conn: sqlite3.Connection) -> list[dict]:
             ROUND(SUM(kast * rounds_played)   / SUM(rounds_played), 1) AS avg_kast,
             ROUND(SUM(kpr  * rounds_played)   / SUM(rounds_played), 3) AS avg_kpr,
             ROUND(SUM(dpr  * rounds_played)   / SUM(rounds_played), 3) AS avg_dpr,
-            SUM(kills)              AS total_kills,
-            SUM(deaths)             AS total_deaths,
-            SUM(assists)            AS total_assists,
-            SUM(rounds_played)      AS total_rounds,
+            ROUND(SUM(hs_pct * rounds_played) / SUM(rounds_played), 1) AS avg_hs_pct,
+            SUM(kills)               AS total_kills,
+            SUM(deaths)              AS total_deaths,
+            SUM(assists)             AS total_assists,
+            SUM(rounds_played)       AS total_rounds,
+            SUM(opening_kills)       AS total_opening_kills,
+            SUM(opening_attempts)    AS total_opening_attempts,
+            SUM(flash_enemies)       AS total_flash_enemies,
+            SUM(clutch_won)          AS total_clutch_won,
+            SUM(clutch_total)        AS total_clutch_total,
             COUNT(DISTINCT match_id) AS matches_played
         FROM player_ratings
         GROUP BY steamid
