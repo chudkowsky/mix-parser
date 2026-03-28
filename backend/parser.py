@@ -126,6 +126,17 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
     kills_by_attacker_round: dict[tuple, int] = defaultdict(int)
     assists_by_player_round: dict[tuple, int] = defaultdict(int)
     hs_by_player:            dict[str, int]   = defaultdict(int)
+    knife_kills_by_player:   dict[str, int]   = defaultdict(int)
+    zeus_kills_by_player:    dict[str, int]   = defaultdict(int)
+
+    KNIFE_WEAPONS = {"knife", "knife_t", "knife_ghost", "knifegg", "bayonet",
+                     "knife_flip", "knife_gut", "knife_karambit", "knife_m9_bayonet",
+                     "knife_tactical", "knife_falchion", "knife_survival_bowie",
+                     "knife_butterfly", "knife_push", "knife_cord", "knife_canis",
+                     "knife_ursus", "knife_gypsy_jackknife", "knife_outdoor",
+                     "knife_stiletto", "knife_widowmaker", "knife_skeleton",
+                     "knife_css", "knife_kukri"}
+    ZEUS_WEAPONS = {"taser"}
 
     for _, row in kills_df.iterrows():
         rnd = row.get("total_rounds_played")
@@ -141,6 +152,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
         hs       = bool(row.get("headshot"))
         team_kill = atk_team == vic_team and atk_team != ""
 
+        weapon = str(row.get("weapon") or "")
         if atk and atk != "None" and not team_kill:
             round_kills[rnd].append({
                 "attacker": atk, "victim": vic, "tick": tick,
@@ -149,6 +161,10 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             kills_by_attacker_round[(atk, rnd)] += 1
             if hs:
                 hs_by_player[atk] += 1
+            if weapon in KNIFE_WEAPONS:
+                knife_kills_by_player[atk] += 1
+            if weapon in ZEUS_WEAPONS:
+                zeus_kills_by_player[atk] += 1
 
         if vic and vic != "None":
             round_deaths[rnd].add(vic)
@@ -424,6 +440,8 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             "flash_avg_dur":  favg,
             "clutch_won":     clutch_won.get(sid, 0),
             "clutch_total":   clutch_total.get(sid, 0),
+            "knife_kills":    knife_kills_by_player.get(sid, 0),
+            "zeus_kills":     zeus_kills_by_player.get(sid, 0),
         })
 
     results.sort(key=lambda p: p["rating"], reverse=True)
@@ -482,6 +500,7 @@ def parse_demo(file_path: str | Path) -> dict:
         "rounds":           _df_to_records(rounds),
         "kills":            _df_to_records(kills),
         "damages":          _df_to_records(damages),
+        "blind_events":     _df_to_records(blind_df) if blind_df is not None else [],
         "bomb_events":      bomb_events,
         "grenade_events":   grenade_events,
     }

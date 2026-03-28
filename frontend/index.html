@@ -420,6 +420,8 @@ function leaderboardCard(lb) {
     <td>${openPct(p)}</td>
     <td>${clutchPct(p)}</td>
     <td>${p.total_flash_enemies ?? '—'}</td>
+    <td>${p.total_knife_kills || '—'}</td>
+    <td>${p.total_zeus_kills  || '—'}</td>
     <td class="matches-count">${p.matches_played}</td>
   </tr>`).join('');
 
@@ -429,7 +431,7 @@ function leaderboardCard(lb) {
       <table class="lb-table">
         <thead><tr>
           <th></th><th>Player</th><th>Rating</th><th>ADR</th>
-          <th>KAST</th><th>HS%</th><th>K/D</th><th>Opening%</th><th>Clutch</th><th>Flashes</th><th>Maps</th>
+          <th>KAST</th><th>HS%</th><th>K/D</th><th>Opening%</th><th>Clutch</th><th>Flashes</th><th>🔪</th><th>⚡</th><th>Maps</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -623,6 +625,8 @@ function detailRatings(ratings) {
           <span>KAST <b>${p.kast}%</b></span>
           ${p.flash_enemies ? `<span>Flash <b>${p.flash_enemies}</b></span>` : ''}
           ${clutch ? `<span>Clutch <b>${clutch}</b></span>` : ''}
+          ${p.knife_kills ? `<span>🔪 <b>${p.knife_kills}</b></span>` : ''}
+          ${p.zeus_kills  ? `<span>⚡ <b>${p.zeus_kills}</b></span>`  : ''}
         </span>
         <span style="display:flex;align-items:center;gap:.4rem;margin-left:auto">
           ${ctR} ${tR}

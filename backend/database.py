@@ -84,6 +84,8 @@ def init_db(db_path: Path, data_dir: Path) -> None:
         "clutch_won":     "INTEGER",
         "clutch_total":   "INTEGER",
         "multi_kills":    "TEXT",
+        "knife_kills":    "INTEGER",
+        "zeus_kills":     "INTEGER",
     }
     for col, typ in new_pr_cols.items():
         if col not in existing_pr:
@@ -138,8 +140,9 @@ def insert_player_ratings(conn: sqlite3.Connection, match_id: int, ratings: list
             impact, kills, deaths, assists, rounds_played,
             hs_pct, survive_pct, opening_kills, opening_attempts,
             ct_rating, ct_rounds, t_rating, t_rounds,
-            flash_enemies, flash_avg_dur, clutch_won, clutch_total, multi_kills)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            flash_enemies, flash_avg_dur, clutch_won, clutch_total,
+            multi_kills, knife_kills, zeus_kills)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         [
             (
                 match_id,
@@ -153,6 +156,7 @@ def insert_player_ratings(conn: sqlite3.Connection, match_id: int, ratings: list
                 p.get("flash_enemies"), p.get("flash_avg_dur"),
                 p.get("clutch_won"), p.get("clutch_total"),
                 json.dumps(p.get("multi_kills") or {}),
+                p.get("knife_kills", 0), p.get("zeus_kills", 0),
             )
             for p in ratings
         ],
@@ -279,6 +283,8 @@ def get_leaderboard(conn: sqlite3.Connection) -> list[dict]:
             SUM(flash_enemies)       AS total_flash_enemies,
             SUM(clutch_won)          AS total_clutch_won,
             SUM(clutch_total)        AS total_clutch_total,
+            SUM(knife_kills)         AS total_knife_kills,
+            SUM(zeus_kills)          AS total_zeus_kills,
             COUNT(DISTINCT match_id) AS matches_played
         FROM player_ratings
         GROUP BY steamid
