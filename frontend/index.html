@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>mix-parser — CS2 Demo Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1c24;
+      --border:   #2a2d38;
+      --accent:   #f0a500;
+      --ct:       #5baeff;
+      --ct-bg:    #1a3a5c;
+      --t:        #ff8c42;
+      --t-bg:     #3a1a00;
+      --green:    #4caf7d;
+      --red:      #e05555;
+      --muted:    #666;
+      --text:     #e0e0e0;
+      --text-dim: #888;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding: 0.9rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 {
+      font-size: 1.3rem;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      cursor: pointer;
+    }
+    header h1 span { color: var(--text-dim); font-weight: 400; }
+    #back-btn {
+      display: none;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 5px;
+      padding: 0.3rem 0.75rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    #back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Layout ── */
+    #app { max-width: 1100px; margin: 0 auto; padding: 2rem 1.25rem; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    /* ── Upload ── */
+    .upload-area {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .drop-zone {
+      flex: 1;
+      min-width: 220px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--accent);
+      background: #1f2130;
+      color: var(--text);
+    }
+    .drop-zone input { display: none; }
+    .parse-btn {
+      padding: 0.65rem 1.75rem;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .2s;
+    }
+    .parse-btn:hover { background: #ffc030; }
+    .parse-btn:disabled { background: #333; color: var(--muted); cursor: not-allowed; }
+    #upload-status { font-size: 0.82rem; color: var(--text-dim); min-height: 1.2em; }
+
+    /* ── Leaderboard table ── */
+    .lb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .lb-table th {
+      background: #111318;
+      color: var(--accent);
+      padding: 0.55rem 0.75rem;
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .lb-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1e2030; }
+    .lb-table tr:last-child td { border-bottom: none; }
+    .lb-table tr:hover td { background: #1f2130; }
+    .lb-table .rank { color: var(--muted); font-weight: 700; width: 2rem; }
+    .lb-table .player-name { font-weight: 600; }
+    .lb-table .matches-count { color: var(--muted); font-size: 0.78rem; }
+    .lb-table .kd {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Match grid ── */
+    .grid-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+    }
+    .matches-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 1rem;
+    }
+    .match-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      cursor: pointer;
+      transition: border-color .2s, transform .15s;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .match-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+    .map-name { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .tile-date { font-size: 0.75rem; color: var(--muted); }
+    .tile-sides { display: flex; gap: 0.5rem; align-items: center; font-size: 0.8rem; }
+    .side-ct { color: var(--ct); font-weight: 600; }
+    .side-t  { color: var(--t);  font-weight: 600; }
+    .side-sep { color: var(--muted); }
+    .tile-rounds { font-size: 0.78rem; color: var(--muted); }
+    .tile-mvp {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .mvp-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .mvp-name { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .empty-state { color: var(--muted); font-size: 0.9rem; padding: 2rem 0; text-align: center; }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #444;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0.1rem 0.25rem;
+      border-radius: 4px;
+      line-height: 1;
+      transition: color .15s, background .15s;
+      flex-shrink: 0;
+    }
+    .delete-btn:hover { color: var(--red); background: #2a1818; }
+
+    /* ── Rating colours ── */
+    .r-high { color: var(--green); font-weight: 700; }
+    .r-mid  { color: var(--accent); font-weight: 700; }
+    .r-low  { color: var(--red);   font-weight: 700; }
+
+    /* ── Match detail ── */
+    .rating-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 640px) { .rating-board { grid-template-columns: 1fr; } }
+    .rating-team h3 {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; padding: 0.3rem 0.75rem;
+      margin-bottom: 0.5rem; border-radius: 4px;
+    }
+    .rating-team.ct h3 { background: var(--ct-bg); color: var(--ct); }
+    .rating-team.t  h3 { background: var(--t-bg);  color: var(--t); }
+    .rating-row {
+      display: flex; align-items: center;
+      padding: 0.45rem 0.75rem; border-radius: 5px;
+      margin-bottom: 0.25rem; background: #111318;
+      gap: 0.5rem;
+    }
+    .rating-row-name { font-size: 0.9rem; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rating-row-meta { display: flex; gap: 0.6rem; font-size: 0.72rem; color: var(--text-dim); flex-wrap: wrap; }
+    .rating-row-meta b { color: var(--text); }
+    .rating-num { font-size: 1.05rem; font-weight: 800; min-width: 3rem; text-align: right; }
+    .formula-note { margin-top: 0.75rem; font-size: 0.7rem; color: #444; }
+
+    .kv-grid { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1.25rem; font-size: 0.85rem; }
+    .kv-grid dt { color: var(--text-dim); }
+    .kv-grid dd { word-break: break-all; }
+
+    .tag {
+      display: inline-block; padding: 0.15rem 0.5rem;
+      border-radius: 4px; font-size: 0.75rem; font-weight: 600;
+    }
+    .tag.ct  { background: var(--ct-bg); color: var(--ct); }
+    .tag.t   { background: var(--t-bg);  color: var(--t); }
+    .tag.hs  { background: #3a1a1a; color: #ff4a4a; }
+
+    .table-wrap { overflow-x: auto; max-height: 340px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { background: #111318; color: var(--accent); padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; position: sticky; top: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+    td { padding: 0.4rem 0.75rem; border-bottom: 1px solid #1e2030; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1f2130; }
+
+    .events-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .ev-badge {
+      background: #111318; border: 1px solid var(--border);
+      border-radius: 4px; padding: 0.2rem 0.5rem;
+      font-size: 0.75rem; color: #aaa;
+    }
+
+    .stat-row { display: flex; gap: 2rem; flex-wrap: wrap; }
+    .stat { text-align: center; }
+    .stat .num { font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+    .stat .lbl { font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+
+    /* ── Charts ── */
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 720px) { .charts-row { grid-template-columns: 1fr; } }
+    .chart-wrap { position: relative; }
+    .chart-wrap canvas { display: block; }
+
+    .loading { color: var(--muted); text-align: center; padding: 4rem; font-size: 0.9rem; }
+    .error   { color: var(--red);   text-align: center; padding: 2rem; }
+
+    .download-btn {
+      padding: 0.4rem 1rem; font-size: 0.8rem;
+      background: #111318; color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 5px;
+      cursor: pointer; transition: background .2s;
+    }
+    .download-btn:hover { background: #1f2130; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1 onclick="navigate('')">mix<span>-parser</span></h1>
+  <button id="back-btn" onclick="navigate('')">← Dashboard</button>
+</header>
+
+<div id="app"></div>
+
+<script>
+// ── Router ───────────────────────────────────────────────────────────────────
+
+const app = document.getElementById('app');
+const backBtn = document.getElementById('back-btn');
+
+function navigate(hash) {
+  location.hash = hash;
+}
+
+async function router() {
+  const raw  = location.hash.replace('#', '');
+  const [view, param] = raw.split('/');
+
+  if (view === 'match' && param) {
+    backBtn.style.display = 'block';
+    await renderMatchDetail(param);
+  } else {
+    backBtn.style.display = 'none';
+    await renderDashboard();
+  }
+}
+
+window.addEventListener('hashchange', router);
+window.addEventListener('DOMContentLoaded', router);
+
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function rClass(r) {
+  if (r == null) return '';
+  return r >= 1.15 ? 'r-high' : r >= 0.85 ? 'r-mid' : 'r-low';
+}
+
+function tag(text, cls) {
+  return `<span class="tag ${cls}">${text}</span>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function fmtRating(r) {
+  if (r == null) return '—';
+  return `<span class="${rClass(r)}">${Number(r).toFixed(2)}</span>`;
+}
+
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+async function renderDashboard() {
+  app.innerHTML = '<div class="loading">Loading…</div>';
+
+  let matches = [], leaderboard = [], stats = { player_history: [], map_distribution: {} };
+  try {
+    [matches, leaderboard, stats] = await Promise.all([
+      fetch('/matches').then(r => r.json()),
+      fetch('/leaderboard').then(r => r.json()),
+      fetch('/stats').then(r => r.json()),
+    ]);
+  } catch (e) {
+    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    return;
+  }
+
+  app.innerHTML = `
+    ${uploadCard()}
+    ${leaderboardCard(leaderboard)}
+    ${chartsSection(stats, leaderboard)}
+    ${matchesSection(matches)}
+  `;
+
+  initUpload();
+  renderCharts(stats, leaderboard);
+}
+
+function uploadCard() {
+  return `<div class="card">
+    <div class="card-title">Upload Demo</div>
+    <div class="upload-area">
+      <div class="drop-zone" id="dropzone">
+        <input type="file" id="fileInput" accept=".dem,.bz2,.gz" />
+        <span id="drop-label">Drop .dem / .dem.bz2 / .dem.gz here — or click to browse</span>
+      </div>
+      <button class="parse-btn" id="parseBtn" disabled>Analyze</button>
+    </div>
+    <div id="upload-status"></div>
+  </div>`;
+}
+
+function leaderboardCard(lb) {
+  if (!lb.length) return `<div class="card"><div class="card-title">Overall Leaderboard</div><p class="empty-state">No data yet — upload some demos.</p></div>`;
+
+  const rows = lb.map((p, i) => `<tr>
+    <td class="rank">#${i + 1}</td>
+    <td class="player-name">${esc(p.name || p.steamid)}</td>
+    <td>${fmtRating(p.avg_rating)}</td>
+    <td>${p.avg_adr ?? '—'}</td>
+    <td>${p.avg_kast != null ? p.avg_kast + '%' : '—'}</td>
+    <td class="kd">${p.total_kills}/${p.total_deaths}</td>
+    <td class="matches-count">${p.matches_played}</td>
+  </tr>`).join('');
+
+  return `<div class="card">
+    <div class="card-title">Overall Leaderboard</div>
+    <div class="table-wrap">
+      <table class="lb-table">
+        <thead><tr>
+          <th></th><th>Player</th><th>Avg Rating</th><th>Avg ADR</th>
+          <th>Avg KAST</th><th>K/D</th><th>Matches</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function matchesSection(matches) {
+  const header = `<div class="grid-header">
+    <span class="section-title">Matches (${matches.length})</span>
+  </div>`;
+
+  if (!matches.length) {
+    return header + `<p class="empty-state">No matches yet. Upload a demo above.</p>`;
+  }
+
+  const tiles = matches.map(m => {
+    const date = fmtDate(m.uploaded_at);
+    const ratingNum = m.top_player_rating != null ? Number(m.top_player_rating).toFixed(2) : '—';
+
+    return `<div class="match-tile" onclick="navigate('match/${m.id}')">
+      <div class="tile-top">
+        <span class="map-name">${esc(m.map_name || 'Unknown Map')}</span>
+        <span class="tile-date">${date}</span>
+        <button class="delete-btn" title="Remove match" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>
+      </div>
+      <div class="tile-sides">
+        <span class="side-ct">CT</span>
+        <span class="side-sep">vs</span>
+        <span class="side-t">T</span>
+      </div>
+      <div class="tile-rounds">${m.total_rounds ?? '?'} rounds</div>
+      ${m.top_player_name ? `<div class="tile-mvp">
+        <span class="mvp-label">MVP</span>
+        <span class="mvp-name" title="${esc(m.top_player_name)}">${esc(m.top_player_name)}</span>
+        <span class="${rClass(m.top_player_rating)}">${ratingNum}</span>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  return header + `<div class="matches-grid">${tiles}</div>`;
+}
+
+
+// ── Upload logic ──────────────────────────────────────────────────────────────
+
+function initUpload() {
+  const dz       = document.getElementById('dropzone');
+  const input    = document.getElementById('fileInput');
+  const btn      = document.getElementById('parseBtn');
+  const statusEl = document.getElementById('upload-status');
+  const label    = document.getElementById('drop-label');
+
+  if (!dz) return;
+  let file = null;
+
+  dz.addEventListener('click', () => input.click());
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', () => { if (input.files[0]) pick(input.files[0]); });
+
+  function pick(f) {
+    file = f;
+    label.textContent = `${f.name}  (${(f.size/1024/1024).toFixed(1)} MB)`;
+    btn.disabled = false;
+    statusEl.textContent = '';
+  }
+
+  btn.addEventListener('click', async () => {
+    if (!file) return;
+    btn.disabled = true;
+    statusEl.style.color = 'var(--text-dim)';
+    statusEl.textContent = 'Uploading & parsing…';
+
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      const res = await fetch('/parse', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || res.statusText);
+      if (data.already_parsed) {
+        statusEl.style.color = 'var(--accent)';
+        statusEl.textContent = `This demo was already analyzed (match #${data.id}). Showing existing results.`;
+      } else {
+        statusEl.style.color = 'var(--green)';
+        statusEl.textContent = `Parsed! Match #${data.match_id} saved.`;
+      }
+      setTimeout(() => renderDashboard(), 800);
+    } catch (e) {
+      btn.disabled = false;
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = `Error: ${e.message}`;
+    }
+  });
+}
+
+
+// ── Match Detail ──────────────────────────────────────────────────────────────
+
+async function renderMatchDetail(id) {
+  app.innerHTML = '<div class="loading">Loading match…</div>';
+
+  let data;
+  try {
+    const res = await fetch(`/matches/${id}`);
+    if (!res.ok) { app.innerHTML = `<div class="error">Match not found.</div>`; return; }
+    data = await res.json();
+  } catch (e) {
+    app.innerHTML = `<div class="error">${e.message}</div>`;
+    return;
+  }
+
+  const kills   = data.kills   || [];
+  const rounds  = data.rounds  || [];
+  const ratings = data.ratings || [];
+  const header  = data.header  || {};
+
+  const hs = kills.filter(k => k.headshot).length;
+  const hsRate = kills.length ? Math.round(hs / kills.length * 100) : 0;
+
+  app.innerHTML = `
+    ${detailHeader(data, header)}
+    ${detailStats(kills.length, rounds.length, hsRate)}
+    ${detailRatings(ratings)}
+    ${rounds.length  ? detailRounds(rounds)         : ''}
+    ${kills.length   ? detailKills(kills)            : ''}
+    ${detailBomb(data.bomb_events || {})}
+    ${detailRaw(data)}
+  `;
+}
+
+function detailHeader(m, header) {
+  const entries = [
+    ['Map',        m.map_name    || header.map_name    || '—'],
+    ['Server',     m.server_name || header.server_name || header.client_name || '—'],
+    ['Patch',      m.patch_version || header.patch_version || '—'],
+    ['Rounds',     m.total_rounds ?? '—'],
+    ['Uploaded',   fmtDate(m.uploaded_at)],
+    ['File',       m.filename || '—'],
+  ];
+  const rows = entries.map(([k,v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
+  return `<div class="card">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+      Match Info
+      <button class="download-btn" style="border-color:var(--red);color:var(--red)"
+        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>
+    </div>
+    <dl class="kv-grid">${rows}</dl>
+  </div>`;
+}
+
+function detailStats(kills, rounds, hsRate) {
+  return `<div class="card"><div class="stat-row">
+    <div class="stat"><div class="num">${rounds}</div><div class="lbl">Rounds</div></div>
+    <div class="stat"><div class="num">${kills}</div><div class="lbl">Kills</div></div>
+    <div class="stat"><div class="num">${hsRate}%</div><div class="lbl">HS Rate</div></div>
+  </div></div>`;
+}
+
+function detailRatings(ratings) {
+  const ct = ratings.filter(p => p.team === 'CT');
+  const t  = ratings.filter(p => p.team === 'TERRORIST');
+
+  function rows(list) {
+    return list.map(p => `<div class="rating-row">
+      <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
+      <span class="rating-row-meta">
+        <span>K/D <b>${p.kills}/${p.deaths}</b></span>
+        <span>ADR <b>${p.adr}</b></span>
+        <span>KAST <b>${p.kast}%</b></span>
+      </span>
+      <span class="rating-num ${rClass(p.rating)}">${Number(p.rating).toFixed(2)}</span>
+    </div>`).join('');
+  }
+
+  return `<div class="card">
+    <div class="card-title">HLTV 2.0 Rating</div>
+    <div class="rating-board">
+      <div class="rating-team ct"><h3>Counter-Terrorists</h3>${rows(ct)}</div>
+      <div class="rating-team t"><h3>Terrorists</h3>${rows(t)}</div>
+    </div>
+    <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>
+  </div>`;
+}
+
+function detailRounds(rounds) {
+  const rows = rounds.map(r => `<tr>
+    <td>${r.round ?? r.total_rounds_played ?? '—'}</td>
+    <td>${tag(r.winner, r.winner === 'CT' ? 'ct' : 't')}</td>
+    <td>${r.reason ?? '—'}</td>
+    <td>${r.tick ?? '—'}</td>
+  </tr>`).join('');
+  return `<div class="card">
+    <div class="card-title">Rounds (${rounds.length})</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Winner</th><th>Reason</th><th>Tick</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function detailKills(kills) {
+  const rows = kills.slice(0, 300).map(k => `<tr>
+    <td>${esc(k.attacker_name ?? '—')} ${tag(k.attacker_team_name ?? '', k.attacker_team_name === 'CT' ? 'ct' : 't')}</td>
+    <td>${esc(k.user_name ?? '—')} ${tag(k.user_team_name ?? '', k.user_team_name === 'CT' ? 'ct' : 't')}</td>
+    <td>${k.weapon ?? '—'}</td>
+    <td>${k.headshot ? tag('HS','hs') : ''}</td>
+    <td>${k.distance != null ? Number(k.distance).toFixed(1) : '—'}</td>
+    <td>${k.total_rounds_played ?? '—'}</td>
+  </tr>`).join('');
+  const note = kills.length > 300 ? `<p style="color:var(--muted);font-size:.8rem;margin-top:.5rem">Showing first 300 of ${kills.length}</p>` : '';
+  return `<div class="card">
+    <div class="card-title">Kill Feed (${kills.length})</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Attacker</th><th>Victim</th><th>Weapon</th><th></th><th>Distance</th><th>Round</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>${note}
+  </div>`;
+}
+
+function detailBomb(bombEvents) {
+  const sections = Object.entries(bombEvents).map(([ev, rows]) => {
+    if (!rows.length) return '';
+    return `<p style="color:var(--accent);margin:.6rem 0 .3rem;font-size:.82rem;font-weight:700">${ev} (${rows.length})</p>
+      <div class="table-wrap"><table>
+        <thead><tr>${Object.keys(rows[0]).map(k=>`<th>${k}</th>`).join('')}</tr></thead>
+        <tbody>${rows.slice(0,50).map(r=>`<tr>${Object.values(r).map(v=>`<td>${v??'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div>`;
+  }).join('');
+  if (!sections) return '';
+  return `<div class="card"><div class="card-title">Bomb Events</div>${sections}</div>`;
+}
+
+function detailRaw(data) {
+  const summary = JSON.stringify({
+    header: data.header,
+    map_name: data.map_name,
+    total_rounds: data.total_rounds,
+    ratings_count: (data.ratings||[]).length,
+    kills_count: (data.kills||[]).length,
+  }, null, 2);
+
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+
+  return `<div class="card">
+    <div class="card-title" style="display:flex;align-items:center;gap:1rem">
+      Raw JSON
+      <a href="${url}" download="match_${data.id || 'data'}.json" style="text-decoration:none">
+        <button class="download-btn">Download full JSON</button>
+      </a>
+    </div>
+    <pre style="background:#111318;border:1px solid var(--border);border-radius:6px;padding:1rem;font-size:.78rem;overflow:auto;max-height:280px;color:#ccc">${esc(summary)}</pre>
+  </div>`;
+}
+
+
+// ── Charts ───────────────────────────────────────────────────────────────────
+
+// Destroy existing chart instances before re-render
+const _charts = {};
+
+function chartsSection(stats, leaderboard) {
+  if (!stats.player_history.length) return '';
+  return `<div class="charts-row">
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Player Rating History</div>
+      <div class="chart-wrap"><canvas id="chartRating" height="220"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-title">Maps Played</div>
+      <div class="chart-wrap"><canvas id="chartMaps" height="220"></canvas></div>
+    </div>
+  </div>`;
+}
+
+function renderCharts(stats, leaderboard) {
+  if (!stats.player_history.length) return;
+
+  // ── Palette ──
+  const PALETTE = [
+    '#f0a500','#5baeff','#4caf7d','#e05555','#b47fe8',
+    '#ff8c42','#00c9c8','#f06292','#aed581','#90a4ae',
+  ];
+
+  // ── 1. Rating history line chart ──────────────────────────────────────────
+  // Build ordered match list
+  const matchOrder = [];
+  const seen = new Set();
+  for (const r of stats.player_history) {
+    if (!seen.has(r.match_id)) {
+      seen.add(r.match_id);
+      matchOrder.push({ id: r.match_id, map: r.map_name, date: r.uploaded_at });
+    }
+  }
+
+  // Top players by avg rating from leaderboard (cap at 8 for readability)
+  const topPlayers = leaderboard.slice(0, 8).map(p => p.steamid);
+
+  // Group ratings: steamid -> match_id -> rating
+  const ratingMap = {};
+  for (const r of stats.player_history) {
+    if (!topPlayers.includes(r.steamid)) continue;
+    if (!ratingMap[r.steamid]) ratingMap[r.steamid] = { name: r.name, ratings: {} };
+    ratingMap[r.steamid].ratings[r.match_id] = r.rating;
+  }
+
+  const lineLabels = matchOrder.map(m =>
+    `${m.map.replace('de_', '')} #${m.id}`
+  );
+
+  const lineDatasets = topPlayers
+    .filter(sid => ratingMap[sid])
+    .map((sid, i) => {
+      const { name, ratings } = ratingMap[sid];
+      return {
+        label: name,
+        data: matchOrder.map(m => ratings[m.id] ?? null),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: PALETTE[i % PALETTE.length] + '22',
+        tension: 0.3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        spanGaps: true,
+        borderWidth: 2,
+      };
+    });
+
+  if (_charts.rating) _charts.rating.destroy();
+  const ctxR = document.getElementById('chartRating');
+  if (!ctxR) return;
+  _charts.rating = new Chart(ctxR, {
+    type: 'line',
+    data: { labels: lineLabels, datasets: lineDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#888', font: { size: 11 }, boxWidth: 12,
+            padding: 10,
+          },
+        },
+        tooltip: {
+          backgroundColor: '#1a1c24',
+          borderColor: '#2a2d38',
+          borderWidth: 1,
+          titleColor: '#f0a500',
+          bodyColor: '#ccc',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '—'}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#666', font: { size: 11 } },
+          grid: { color: '#1e2030' },
+        },
+        y: {
+          min: 0,
+          ticks: { color: '#666', font: { size: 11 } },
+          grid: { color: '#1e2030' },
+        },
+      },
+    },
+  });
+
+  // ── 2. Map distribution donut ─────────────────────────────────────────────
+  const mapNames  = Object.keys(stats.map_distribution);
+  const mapCounts = Object.values(stats.map_distribution);
+  const mapColors = mapNames.map((_, i) => PALETTE[i % PALETTE.length]);
+
+  if (_charts.maps) _charts.maps.destroy();
+  const ctxM = document.getElementById('chartMaps');
+  if (!ctxM) return;
+  _charts.maps = new Chart(ctxM, {
+    type: 'doughnut',
+    data: {
+      labels: mapNames.map(n => n.replace('de_', '')),
+      datasets: [{
+        data: mapCounts,
+        backgroundColor: mapColors,
+        borderColor: '#0f1117',
+        borderWidth: 3,
+        hoverOffset: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#888', font: { size: 11 }, boxWidth: 12, padding: 10,
+          },
+        },
+        tooltip: {
+          backgroundColor: '#1a1c24',
+          borderColor: '#2a2d38',
+          borderWidth: 1,
+          titleColor: '#f0a500',
+          bodyColor: '#ccc',
+          callbacks: {
+            label: ctx => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = Math.round(ctx.parsed / total * 100);
+              return ` ${ctx.parsed} match${ctx.parsed > 1 ? 'es' : ''} (${pct}%)`;
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+
+// ── Delete match ─────────────────────────────────────────────────────────────
+
+async function deleteMatch(id, btn, redirect = false) {
+  if (!confirm(`Remove match #${id} and revert its impact on all stats?`)) return;
+
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    const res = await fetch(`/matches/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    if (redirect) {
+      navigate('');
+    } else {
+      // Remove tile from grid without full re-render
+      const tile = btn.closest('.match-tile');
+      tile.style.transition = 'opacity .25s';
+      tile.style.opacity = '0';
+      setTimeout(() => { tile.remove(); refreshLeaderboard(); }, 260);
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = '✕';
+    alert(`Delete failed: ${e.message}`);
+  }
+}
+
+async function refreshLeaderboard() {
+  try {
+    const lb = await fetch('/leaderboard').then(r => r.json());
+    const card = document.querySelector('.card');  // leaderboard is second card
+    // Re-render the whole dashboard is simpler here
+    renderDashboard();
+  } catch (_) {}
+}
+
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

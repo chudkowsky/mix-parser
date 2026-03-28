@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# App data
+uploads/
+backend/data/
+backend/mix_parser.db
+demos/*.dem
+
+# OS
+.DS_Store
