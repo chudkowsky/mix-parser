@@ -1,0 +1,10 @@
+services:
+  mix-parser:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/backend/data
+      - ./backend/mix_parser.db:/app/backend/mix_parser.db
+      - ./uploads:/app/uploads
+    restart: unless-stopped

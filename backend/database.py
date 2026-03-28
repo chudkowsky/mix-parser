@@ -216,6 +216,82 @@ def get_match_with_ratings(conn: sqlite3.Connection, match_id: int) -> dict | No
     return {**dict(match_row), "ratings": [dict(r) for r in ratings]}
 
 
+def get_player_profile(conn: sqlite3.Connection, steamid: str) -> dict | None:
+    # Overall aggregated row
+    agg = conn.execute("""
+        SELECT
+            pr.steamid, MAX(pr.name) AS name,
+            ROUND(SUM(pr.rating * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating,
+            ROUND(SUM(pr.adr    * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_adr,
+            ROUND(SUM(pr.kast   * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_kast,
+            ROUND(SUM(pr.kpr    * pr.rounds_played) / SUM(pr.rounds_played), 3) AS avg_kpr,
+            ROUND(SUM(pr.dpr    * pr.rounds_played) / SUM(pr.rounds_played), 3) AS avg_dpr,
+            ROUND(SUM(pr.hs_pct * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_hs_pct,
+            ROUND(SUM(pr.survive_pct * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_survive_pct,
+            SUM(pr.kills)            AS total_kills,
+            SUM(pr.deaths)           AS total_deaths,
+            SUM(pr.assists)          AS total_assists,
+            SUM(pr.rounds_played)    AS total_rounds,
+            SUM(pr.opening_kills)    AS total_opening_kills,
+            SUM(pr.opening_attempts) AS total_opening_attempts,
+            SUM(pr.flash_enemies)    AS total_flash_enemies,
+            ROUND(SUM(pr.flash_avg_dur * pr.flash_enemies) / NULLIF(SUM(pr.flash_enemies), 0), 2) AS avg_flash_dur,
+            SUM(pr.clutch_won)       AS total_clutch_won,
+            SUM(pr.clutch_total)     AS total_clutch_total,
+            SUM(pr.knife_kills)      AS total_knife_kills,
+            SUM(pr.zeus_kills)       AS total_zeus_kills,
+            COUNT(DISTINCT pr.match_id) AS matches_played
+        FROM player_ratings pr
+        WHERE pr.steamid = ?
+    """, (steamid,)).fetchone()
+
+    if agg is None or agg["name"] is None:
+        return None
+
+    # Per-match rows
+    matches = conn.execute("""
+        SELECT
+            m.id AS match_id, m.map_name, m.uploaded_at,
+            pr.rating, pr.kills, pr.deaths, pr.assists,
+            pr.adr, pr.kast, pr.hs_pct, pr.survive_pct,
+            pr.opening_kills, pr.opening_attempts,
+            pr.ct_rating, pr.ct_rounds, pr.t_rating, pr.t_rounds,
+            pr.flash_enemies, pr.flash_avg_dur,
+            pr.clutch_won, pr.clutch_total,
+            pr.multi_kills, pr.knife_kills, pr.zeus_kills,
+            pr.rounds_played, pr.team
+        FROM matches m
+        JOIN player_ratings pr ON pr.match_id = m.id
+        WHERE pr.steamid = ?
+        ORDER BY m.uploaded_at ASC
+    """, (steamid,)).fetchall()
+
+    # Per-map aggregated stats
+    map_stats = conn.execute("""
+        SELECT
+            m.map_name,
+            COUNT(*) AS matches,
+            ROUND(SUM(pr.rating * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating,
+            ROUND(SUM(pr.adr    * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_adr,
+            ROUND(SUM(pr.kast   * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_kast,
+            ROUND(SUM(pr.hs_pct * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_hs_pct,
+            SUM(pr.kills)  AS total_kills,
+            SUM(pr.deaths) AS total_deaths,
+            SUM(pr.flash_enemies) AS total_flash_enemies
+        FROM matches m
+        JOIN player_ratings pr ON pr.match_id = m.id
+        WHERE pr.steamid = ?
+        GROUP BY m.map_name
+        ORDER BY avg_rating DESC
+    """, (steamid,)).fetchall()
+
+    return {
+        **dict(agg),
+        "matches":   [dict(r) for r in matches],
+        "map_stats": [dict(r) for r in map_stats],
+    }
+
+
 def get_stats(conn: sqlite3.Connection) -> dict:
     """
     Returns data for dashboard charts:

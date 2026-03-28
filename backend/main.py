@@ -141,3 +141,11 @@ async def stats(conn: sqlite3.Connection = Depends(get_db)):
 @app.get("/leaderboard")
 async def leaderboard(conn: sqlite3.Connection = Depends(get_db)):
     return JSONResponse(database.get_leaderboard(conn))
+
+
+@app.get("/players/{steamid}")
+async def player_profile(steamid: str, conn: sqlite3.Connection = Depends(get_db)):
+    row = database.get_player_profile(conn, steamid)
+    if row is None:
+        raise HTTPException(404, "Player not found")
+    return JSONResponse(row)
