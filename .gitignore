@@ -8,7 +8,6 @@ venv/
 # App data
 uploads/
 backend/data/
-backend/mix_parser.db
 demos/*.dem
 
 # OS
