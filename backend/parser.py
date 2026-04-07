@@ -79,7 +79,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             name = row.get("user_name") or ""
             rnd  = row.get("total_rounds_played")
             team = row.get("user_team_name") or ""
-            if sid and rnd is not None:
+            if sid and sid not in ("None", "nan") and rnd is not None:
                 player_rounds[sid].add(int(rnd))
                 player_names[sid] = name
                 if team:
@@ -94,7 +94,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             sid  = str(row.get(f"{role}_steamid") or "")
             name = row.get(f"{role}_name") or ""
             team = row.get(f"{role}_team_name") or ""
-            if sid and sid != "None":
+            if sid and sid not in ("None", "nan"):
                 player_rounds[sid].add(rnd)
                 if name:
                     player_names[sid] = name
@@ -110,7 +110,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             sid  = str(row.get(f"{role}_steamid") or "")
             name = row.get(f"{role}_name") or ""
             team = row.get(f"{role}_team_name") or ""
-            if sid and sid != "None":
+            if sid and sid not in ("None", "nan"):
                 player_rounds[sid].add(rnd)
                 if name:
                     player_names[sid] = name
@@ -153,7 +153,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
         team_kill = atk_team == vic_team and atk_team != ""
 
         weapon = str(row.get("weapon") or "")
-        if atk and atk != "None" and not team_kill:
+        if atk and atk not in ("None", "nan") and not team_kill:
             round_kills[rnd].append({
                 "attacker": atk, "victim": vic, "tick": tick,
                 "atk_team": atk_team, "vic_team": vic_team, "headshot": hs,
@@ -166,10 +166,10 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             if weapon in ZEUS_WEAPONS:
                 zeus_kills_by_player[atk] += 1
 
-        if vic and vic != "None":
+        if vic and vic not in ("None", "nan"):
             round_deaths[rnd].add(vic)
 
-        if asst and asst != "None":
+        if asst and asst not in ("None", "nan"):
             round_assists[rnd].add(asst)
             assists_by_player_round[(asst, rnd)] += 1
 
