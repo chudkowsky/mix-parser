@@ -1,17 +1,35 @@
 import asyncio
 import hashlib
 import math
+import os
+import secrets
 import sqlite3
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 import database
 from parser import parse_demo
+
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
+_admin_tokens: set[str] = set()
+
+
+class LoginRequest(BaseModel):
+    password: str
+
+
+def require_admin(authorization: str | None = Header(default=None)):
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+    if not token or token not in _admin_tokens:
+        raise HTTPException(401, "Admin authentication required")
 
 
 def _sanitize(obj):
@@ -71,10 +89,27 @@ async def health():
     return {"status": "ok"}
 
 
+@app.post("/admin/login")
+async def admin_login(body: LoginRequest):
+    if not secrets.compare_digest(body.password, ADMIN_PASSWORD):
+        raise HTTPException(403, "Invalid password")
+    token = secrets.token_hex(32)
+    _admin_tokens.add(token)
+    return {"token": token}
+
+
+@app.post("/admin/logout")
+async def admin_logout(authorization: str | None = Header(default=None)):
+    if authorization and authorization.startswith("Bearer "):
+        _admin_tokens.discard(authorization[7:])
+    return {"ok": True}
+
+
 @app.post("/parse")
 async def parse(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    uploaded_by: str | None = Form(default=None),
     conn: sqlite3.Connection = Depends(get_db),
 ):
     name = file.filename or "upload.dem"
@@ -108,7 +143,7 @@ async def parse(
         save_to.unlink(missing_ok=True)
         raise HTTPException(500, f"Parse error: {exc}") from exc
 
-    match_id = database.insert_match(conn, name, result, file_hash)
+    match_id = database.insert_match(conn, name, result, file_hash, uploaded_by)
     database.insert_player_ratings(conn, match_id, result["ratings"])
     conn.commit()
     database.save_match_data(DATA_DIR, match_id, result)
@@ -138,7 +173,11 @@ async def match_detail(match_id: int, conn: sqlite3.Connection = Depends(get_db)
 
 
 @app.delete("/matches/{match_id}")
-async def delete_match(match_id: int, conn: sqlite3.Connection = Depends(get_db)):
+async def delete_match(
+    match_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(require_admin),
+):
     deleted = database.delete_match(conn, match_id, DATA_DIR)
     if not deleted:
         raise HTTPException(404, "Match not found")

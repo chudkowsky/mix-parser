@@ -297,6 +297,53 @@
       cursor: pointer; transition: background .2s;
     }
     .download-btn:hover { background: #1f2130; }
+
+    /* ── Admin ── */
+    #admin-btn {
+      margin-left: auto;
+      padding: 0.3rem 0.85rem;
+      font-size: 0.8rem;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s;
+    }
+    #admin-btn.logged-out {
+      background: none; border: 1px solid var(--border); color: var(--text-dim);
+    }
+    #admin-btn.logged-out:hover { border-color: var(--accent); color: var(--accent); }
+    #admin-btn.logged-in {
+      background: none; border: 1px solid var(--red); color: var(--red);
+    }
+    #admin-btn.logged-in:hover { background: #2a1818; }
+
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.65); z-index: 1000;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 2rem 2.25rem; min-width: 320px;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .modal h2 { font-size: 1rem; color: var(--accent); }
+    .modal input[type=password] {
+      width: 100%; padding: 0.55rem 0.8rem;
+      background: #111318; border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: 0.9rem;
+    }
+    .modal input[type=password]:focus { outline: none; border-color: var(--accent); }
+    .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+    .modal-actions button {
+      padding: 0.45rem 1.1rem; border-radius: 5px; font-size: 0.85rem;
+      cursor: pointer; transition: background .2s;
+    }
+    .btn-cancel { background: none; border: 1px solid var(--border); color: var(--text-dim); }
+    .btn-cancel:hover { border-color: var(--text-dim); }
+    .btn-login  { background: var(--accent); border: none; color: var(--bg); font-weight: 700; }
+    .btn-login:hover { background: #ffc030; }
+    #login-error { font-size: 0.8rem; color: var(--red); min-height: 1em; }
   </style>
 </head>
 <body>
@@ -304,11 +351,121 @@
 <header>
   <h1 onclick="navigate('')">mix<span>-parser</span></h1>
   <button id="back-btn" onclick="navigate('')">← Dashboard</button>
+  <button id="admin-btn" class="logged-out" onclick="adminBtnClick()">Admin</button>
 </header>
+
+<!-- Name modal -->
+<div class="modal-overlay" id="name-modal">
+  <div class="modal">
+    <h2>What's your name?</h2>
+    <input type="text" id="user-name-input" placeholder="Enter your name" maxlength="40"
+      onkeydown="if(event.key==='Enter') submitName()" style="width:100%;padding:.55rem .8rem;background:#111318;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem" />
+    <div class="modal-actions">
+      <button class="btn-login" onclick="submitName()">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin login modal -->
+<div class="modal-overlay" id="login-modal" onclick="if(event.target===this) closeLoginModal()">
+  <div class="modal">
+    <h2>Admin Login</h2>
+    <input type="password" id="admin-pw" placeholder="Password" onkeydown="if(event.key==='Enter') submitLogin()" />
+    <div id="login-error"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeLoginModal()">Cancel</button>
+      <button class="btn-login"  onclick="submitLogin()">Login</button>
+    </div>
+  </div>
+</div>
 
 <div id="app"></div>
 
 <script>
+// ── User name ─────────────────────────────────────────────────────────────────
+
+function getUserName() { return localStorage.getItem('user_name') || ''; }
+
+function submitName() {
+  const val = document.getElementById('user-name-input').value.trim();
+  if (!val) return;
+  localStorage.setItem('user_name', val);
+  document.getElementById('name-modal').classList.remove('open');
+}
+
+function maybeAskName() {
+  if (!getUserName()) {
+    document.getElementById('name-modal').classList.add('open');
+    setTimeout(() => document.getElementById('user-name-input').focus(), 50);
+  }
+}
+
+// ── Admin auth ────────────────────────────────────────────────────────────────
+
+function getAdminToken() { return sessionStorage.getItem('admin_token'); }
+function isAdmin() { return !!getAdminToken(); }
+
+function updateAdminBtn() {
+  const btn = document.getElementById('admin-btn');
+  if (isAdmin()) {
+    btn.textContent = 'Logout';
+    btn.className = 'logged-in';
+  } else {
+    btn.textContent = 'Admin';
+    btn.className = 'logged-out';
+  }
+}
+
+function adminBtnClick() {
+  if (isAdmin()) {
+    adminLogout();
+  } else {
+    document.getElementById('login-modal').classList.add('open');
+    document.getElementById('admin-pw').value = '';
+    document.getElementById('login-error').textContent = '';
+    setTimeout(() => document.getElementById('admin-pw').focus(), 50);
+  }
+}
+
+function closeLoginModal() {
+  document.getElementById('login-modal').classList.remove('open');
+}
+
+async function submitLogin() {
+  const pw = document.getElementById('admin-pw').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  try {
+    const res = await fetch('/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    if (!res.ok) { errEl.textContent = 'Invalid password.'; return; }
+    const data = await res.json();
+    sessionStorage.setItem('admin_token', data.token);
+    closeLoginModal();
+    updateAdminBtn();
+    // Re-render to show delete buttons
+    router();
+  } catch (e) {
+    errEl.textContent = `Error: ${e.message}`;
+  }
+}
+
+async function adminLogout() {
+  const token = getAdminToken();
+  if (token) {
+    await fetch('/admin/logout', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => {});
+    sessionStorage.removeItem('admin_token');
+  }
+  updateAdminBtn();
+  router();
+}
+
 // ── Router ───────────────────────────────────────────────────────────────────
 
 const app = document.getElementById('app');
@@ -335,7 +492,7 @@ async function router() {
 }
 
 window.addEventListener('hashchange', router);
-window.addEventListener('DOMContentLoaded', router);
+window.addEventListener('DOMContentLoaded', () => { updateAdminBtn(); maybeAskName(); router(); });
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -459,14 +616,14 @@ function matchesSection(matches) {
       <div class="tile-top">
         <span class="map-name">${esc(m.map_name || 'Unknown Map')}</span>
         <span class="tile-date">${date}</span>
-        <button class="delete-btn" title="Remove match" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>
+        ${isAdmin() ? `<button class="delete-btn" title="Remove match" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>` : ''}
       </div>
       <div class="tile-sides">
         <span class="side-ct">CT</span>
         <span class="side-sep">vs</span>
         <span class="side-t">T</span>
       </div>
-      <div class="tile-rounds">${m.total_rounds ?? '?'} rounds</div>
+      <div class="tile-rounds">${m.total_rounds ?? '?'} rounds${m.uploaded_by ? ` · <span style="color:var(--text-dim)">by ${esc(m.uploaded_by)}</span>` : ''}</div>
       ${m.top_player_name ? `<div class="tile-mvp">
         <span class="mvp-label">MVP</span>
         <span class="mvp-name" title="${esc(m.top_player_name)}">${esc(m.top_player_name)}</span>
@@ -515,6 +672,8 @@ function initUpload() {
 
     const form = new FormData();
     form.append('file', file);
+    const name = getUserName();
+    if (name) form.append('uploaded_by', name);
 
     try {
       const res = await fetch('/parse', { method: 'POST', body: form });
@@ -574,19 +733,20 @@ async function renderMatchDetail(id) {
 
 function detailHeader(m, header) {
   const entries = [
-    ['Map',        m.map_name    || header.map_name    || '—'],
-    ['Server',     m.server_name || header.server_name || header.client_name || '—'],
-    ['Patch',      m.patch_version || header.patch_version || '—'],
-    ['Rounds',     m.total_rounds ?? '—'],
-    ['Uploaded',   fmtDate(m.uploaded_at)],
-    ['File',       m.filename || '—'],
+    ['Map',         m.map_name    || header.map_name    || '—'],
+    ['Server',      m.server_name || header.server_name || header.client_name || '—'],
+    ['Patch',       m.patch_version || header.patch_version || '—'],
+    ['Rounds',      m.total_rounds ?? '—'],
+    ['Uploaded',    fmtDate(m.uploaded_at)],
+    ...(m.uploaded_by ? [['Uploaded by', m.uploaded_by]] : []),
+    ['File',        m.filename || '—'],
   ];
   const rows = entries.map(([k,v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
   return `<div class="card">
     <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
       Match Info
-      <button class="download-btn" style="border-color:var(--red);color:var(--red)"
-        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>
+      ${isAdmin() ? `<button class="download-btn" style="border-color:var(--red);color:var(--red)"
+        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
     </div>
     <dl class="kv-grid">${rows}</dl>
   </div>`;
@@ -961,7 +1121,10 @@ async function deleteMatch(id, btn, redirect = false) {
   btn.textContent = '…';
 
   try {
-    const res = await fetch(`/matches/${id}`, { method: 'DELETE' });
+    const res = await fetch(`/matches/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getAdminToken()}` },
+    });
     if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
     if (redirect) {
       navigate('');

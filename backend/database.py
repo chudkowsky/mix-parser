@@ -26,7 +26,8 @@ def init_db(db_path: Path, data_dir: Path) -> None:
             ct_team_name  TEXT,
             t_team_name   TEXT,
             total_rounds  INTEGER,
-            uploaded_at   TEXT    NOT NULL
+            uploaded_at   TEXT    NOT NULL,
+            uploaded_by   TEXT
         );
 
         CREATE TABLE IF NOT EXISTS player_ratings (
@@ -68,6 +69,8 @@ def init_db(db_path: Path, data_dir: Path) -> None:
     existing_matches = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
     if "file_hash" not in existing_matches:
         conn.execute("ALTER TABLE matches ADD COLUMN file_hash TEXT")
+    if "uploaded_by" not in existing_matches:
+        conn.execute("ALTER TABLE matches ADD COLUMN uploaded_by TEXT")
 
     existing_pr = {r[1] for r in conn.execute("PRAGMA table_info(player_ratings)")}
     new_pr_cols = {
@@ -102,7 +105,7 @@ def get_match_by_hash(conn: sqlite3.Connection, file_hash: str) -> dict | None:
     return dict(row) if row else None
 
 
-def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_hash: str | None = None) -> int:
+def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_hash: str | None = None, uploaded_by: str | None = None) -> int:
     header = parsed.get("header", {})
     rounds = parsed.get("rounds", [])
     ratings = parsed.get("ratings", [])
@@ -116,8 +119,8 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
 
     cur = conn.execute(
         """INSERT INTO matches
-           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, uploaded_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, uploaded_at, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             filename,
             file_hash,
@@ -128,6 +131,7 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
             t_team,
             len(rounds),
             datetime.now(timezone.utc).isoformat(),
+            uploaded_by,
         ),
     )
     return cur.lastrowid
@@ -183,7 +187,7 @@ def get_all_matches(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("""
         SELECT
             m.id, m.filename, m.map_name, m.server_name,
-            m.ct_team_name, m.t_team_name, m.total_rounds, m.uploaded_at,
+            m.ct_team_name, m.t_team_name, m.total_rounds, m.uploaded_at, m.uploaded_by,
             pr.name   AS top_player_name,
             pr.rating AS top_player_rating,
             pr.team   AS top_player_team
