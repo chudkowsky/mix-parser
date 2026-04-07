@@ -45,7 +45,7 @@ def _sanitize(obj):
 BASE_DIR    = Path(__file__).parent
 UPLOAD_DIR  = BASE_DIR.parent / "uploads"
 DATA_DIR    = BASE_DIR / "data"
-DB_PATH     = BASE_DIR / "mix_parser.db"
+DB_PATH     = BASE_DIR / "data/mix_parser.db"
 FRONTEND    = BASE_DIR.parent / "frontend"
 
 UPLOAD_DIR.mkdir(exist_ok=True)
