@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import math
 import sqlite3
 import uuid
 from pathlib import Path
@@ -11,6 +12,17 @@ from fastapi.staticfiles import StaticFiles
 
 import database
 from parser import parse_demo
+
+
+def _sanitize(obj):
+    """Recursively replace NaN/Inf floats with None so JSON serialization never fails."""
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: _sanitize(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize(v) for v in obj]
+    return obj
 
 BASE_DIR    = Path(__file__).parent
 UPLOAD_DIR  = BASE_DIR.parent / "uploads"
@@ -83,11 +95,11 @@ async def parse(
         background_tasks.add_task(save_to.unlink, True)
         full = database.load_match_data(DATA_DIR, existing["id"]) or {}
         ratings = database.get_match_with_ratings(conn, existing["id"])
-        return JSONResponse({
+        return JSONResponse(_sanitize({
             **full,
             **ratings,
             "already_parsed": True,
-        })
+        }))
 
     try:
         loop   = asyncio.get_event_loop()
@@ -103,7 +115,7 @@ async def parse(
 
     background_tasks.add_task(save_to.unlink, True)
 
-    return JSONResponse({"match_id": match_id, "already_parsed": False, **result})
+    return JSONResponse(_sanitize({"match_id": match_id, "already_parsed": False, **result}))
 
 
 @app.get("/matches")
@@ -119,10 +131,10 @@ async def match_detail(match_id: int, conn: sqlite3.Connection = Depends(get_db)
 
     full = database.load_match_data(DATA_DIR, match_id) or {}
     # Merge: DB ratings (authoritative) + disk payload (kills, rounds, etc.)
-    return JSONResponse({
+    return JSONResponse(_sanitize({
         **full,
         **row,  # DB fields overwrite (ratings from DB, not stale disk copy)
-    })
+    }))
 
 
 @app.delete("/matches/{match_id}")
