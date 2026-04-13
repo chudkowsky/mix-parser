@@ -161,6 +161,36 @@
     .tp-team-avg strong { color: var(--text); }
     .tp-diff { text-align: center; margin-top: 1rem; font-size: 0.8rem; color: var(--muted); }
     .tp-diff strong { color: var(--accent); }
+    .tp-nav-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    }
+    .tp-nav-card:hover {
+      border-color: var(--accent);
+      background: #181a24;
+      transform: translateY(-2px);
+    }
+    .tp-nav-card:hover .tp-nav-icon,
+    .tp-nav-card:hover .tp-nav-label { color: var(--accent); }
+    .tp-nav-icon { font-size: 1.5rem; color: var(--muted); transition: color 0.2s; }
+    .tp-nav-label {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      transition: color 0.2s;
+    }
     .tp-tabs { display: flex; gap: 0.4rem; margin-top: 1.5rem; flex-wrap: wrap; }
     .tp-tab {
       display: flex; flex-direction: column; align-items: center;
@@ -603,8 +633,9 @@ async function renderDashboard() {
   }
 
   app.innerHTML = `
-    <div style="margin-bottom:1.5rem;text-align:center">
-      <button class="tp-generate-btn" onclick="navigate('team-picker')" style="background:#1e2030;color:var(--text);border:1px solid var(--border);width:100%;max-width:420px;padding:1rem 2rem;font-size:1.1rem;letter-spacing:0.05em">⚖ Pick Teams</button>
+    <div class="tp-nav-card" onclick="navigate('team-picker')">
+      <span class="tp-nav-icon">🎲</span>
+      <span class="tp-nav-label">Pick Teams</span>
     </div>
     ${uploadCard()}
     ${leaderboardCard(leaderboard)}
