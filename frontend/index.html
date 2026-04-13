@@ -270,6 +270,20 @@
       grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
       gap: 1rem;
     }
+    .matches-pagination {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.3rem; margin-top: 1rem; flex-wrap: wrap;
+    }
+    .pg-btn {
+      padding: 0.35rem 0.65rem; border-radius: 5px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); font-size: 0.82rem; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s; min-width: 2rem; text-align: center;
+    }
+    .pg-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+    .pg-btn.active { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    .pg-btn:disabled { opacity: 0.3; cursor: default; }
+    .pg-info { font-size: 0.75rem; color: var(--muted); margin: 0 0.5rem; }
     .match-tile {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -288,13 +302,13 @@
       position: absolute; top: 0; right: 0; bottom: 0;
       width: 45%;
       object-fit: cover;
-      opacity: 0.25;
+      opacity: 0.7;
       pointer-events: none;
       border-radius: 0 8px 8px 0;
       mask-image: linear-gradient(to right, transparent, black 40%);
       -webkit-mask-image: linear-gradient(to right, transparent, black 40%);
     }
-    .match-tile:hover .tile-map-img { opacity: 0.35; transition: opacity 0.2s; }
+    .match-tile:hover .tile-map-img { opacity: 1; transition: opacity 0.2s; }
     .tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
     .map-name { font-size: 1rem; font-weight: 700; color: var(--text); }
     .tile-date { font-size: 0.75rem; color: var(--muted); }
@@ -968,7 +982,23 @@ function leaderboardCard(lb) {
   </div>`;
 }
 
+const MATCHES_PER_PAGE = 6;
+let _matchesPage = 1;
+let _matchesAll  = [];
+
 function matchesSection(matches) {
+  _matchesAll  = matches;
+  _matchesPage = 1;
+  return renderMatchesSection();
+}
+
+function renderMatchesSection() {
+  const matches   = _matchesAll;
+  const totalPages = Math.max(1, Math.ceil(matches.length / MATCHES_PER_PAGE));
+  const page      = Math.min(_matchesPage, totalPages);
+  const start     = (page - 1) * MATCHES_PER_PAGE;
+  const slice     = matches.slice(start, start + MATCHES_PER_PAGE);
+
   const header = `<div class="grid-header">
     <span class="section-title">Matches (${matches.length})</span>
   </div>`;
@@ -977,11 +1007,10 @@ function matchesSection(matches) {
     return header + `<p class="empty-state">No matches yet. Upload a demo above.</p>`;
   }
 
-  const tiles = matches.map(m => {
-    const date = fmtDate(m.uploaded_at);
+  const tiles = slice.map(m => {
+    const date      = fmtDate(m.uploaded_at);
     const ratingNum = m.top_player_rating != null ? Number(m.top_player_rating).toFixed(2) : '—';
-
-    const mapImg = m.map_name
+    const mapImg    = m.map_name
       ? `<img class="tile-map-img" src="/static/maps/${encodeURIComponent(m.map_name)}.png" alt="" onerror="this.style.display='none'">`
       : '';
 
@@ -1006,7 +1035,38 @@ function matchesSection(matches) {
     </div>`;
   }).join('');
 
-  return header + `<div class="matches-grid">${tiles}</div>`;
+  // Page number buttons (show up to 7, with ellipsis logic)
+  const pageNums = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= page - 2 && i <= page + 2)) {
+      pageNums.push(i);
+    } else if (pageNums[pageNums.length - 1] !== '…') {
+      pageNums.push('…');
+    }
+  }
+
+  const pgBtns = pageNums.map(p =>
+    p === '…'
+      ? `<span class="pg-info">…</span>`
+      : `<button class="pg-btn${p === page ? ' active' : ''}" onclick="matchesGoTo(${p})">${p}</button>`
+  ).join('');
+
+  const pagination = totalPages > 1 ? `
+    <div class="matches-pagination">
+      <button class="pg-btn" onclick="matchesGoTo(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>
+      ${pgBtns}
+      <button class="pg-btn" onclick="matchesGoTo(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>
+      <span class="pg-info">Page ${page} of ${totalPages}</span>
+    </div>` : '';
+
+  return `<div id="matches-section">${header}<div class="matches-grid">${tiles}</div>${pagination}</div>`;
+}
+
+function matchesGoTo(page) {
+  const totalPages = Math.ceil(_matchesAll.length / MATCHES_PER_PAGE);
+  _matchesPage = Math.max(1, Math.min(page, totalPages));
+  const el = document.getElementById('matches-section');
+  if (el) el.outerHTML = renderMatchesSection();
 }
 
 
