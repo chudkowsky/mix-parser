@@ -123,10 +123,19 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
     ct_team = header.get("team_clan_name_1") or header.get("team1_clan_name") or ct_name or "CT"
     t_team  = header.get("team_clan_name_2") or header.get("team2_clan_name") or t_name or "T"
 
-    # Score: count CT (winner==3) and T (winner==2) wins, skip warmup (total_rounds_played < 1)
+    # Score: account for side swaps at halftime and OT halves (every 3 rounds after round 24)
+    def _team_a_is_ct(rnd):
+        if rnd <= 12: return True
+        if rnd <= 24: return False
+        return ((rnd - 25) // 3) % 2 == 1
+
     game_rounds = [r for r in rounds if (r.get("total_rounds_played") or 0) >= 1]
-    ct_score = sum(1 for r in game_rounds if r.get("winner") == 'CT')
-    t_score  = sum(1 for r in game_rounds if r.get("winner") == 'T')
+    ct_score = sum(
+        1 for r in game_rounds
+        if (_team_a_is_ct(r["total_rounds_played"]) and r.get("winner") == "CT") or
+           (not _team_a_is_ct(r["total_rounds_played"]) and r.get("winner") == "T")
+    )
+    t_score = len(game_rounds) - ct_score
 
     cur = conn.execute(
         """INSERT INTO matches
