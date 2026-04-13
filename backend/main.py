@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 import database
 from parser import parse_demo
+from heatmap_match import generate_match_heatmap
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
 _admin_tokens: set[str] = set()
@@ -149,6 +150,7 @@ async def parse(
     database.save_match_data(DATA_DIR, match_id, result)
 
     background_tasks.add_task(save_to.unlink, True)
+    background_tasks.add_task(generate_match_heatmap, match_id, DATA_DIR, FRONTEND)
 
     return JSONResponse(_sanitize({"match_id": match_id, "already_parsed": False, **result}))
 

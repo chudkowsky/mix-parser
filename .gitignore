@@ -11,6 +11,9 @@ backend/data/
 backend/mix_parser.db
 demos/*.dem
 
+# Generated heatmaps (built at runtime)
+frontend/heatmaps/
+
 # Secrets
 .env
 

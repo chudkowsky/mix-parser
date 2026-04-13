@@ -29,6 +29,7 @@ async function renderMatchDetail(id) {
   app.innerHTML = `
     ${detailHeader(data, header)}
     ${detailRatings(ratings)}
+    ${detailHeatmap(id)}
     ${detailOpeningDuels(ratings)}
     ${detailFlashClutch(ratings)}
     ${rounds.length ? detailRounds(rounds) : ''}
@@ -37,6 +38,8 @@ async function renderMatchDetail(id) {
     ${detailRaw(data)}
     ${detailMeta(data, header, kills.length, rounds.length, hsRate)}
   `;
+
+  loadHeatmapIframe(id);
 }
 
 function detailHeader(m, header) {
@@ -269,6 +272,55 @@ function detailBomb(bombEvents) {
   }).join('');
   if (!sections) return '';
   return collapsibleCard('sec-bomb', 'Bomb Events', sections);
+}
+
+function detailHeatmap(matchId) {
+  return `<div class="card" id="heatmap-card">
+    <div class="card-title">Kill Map</div>
+    <div id="heatmap-frame-wrap" style="
+      position:relative;width:100%;height:960px;
+      background:#0d0d0d;border-radius:0 0 8px 8px;overflow:hidden
+    ">
+      <div style="
+        display:flex;align-items:center;justify-content:center;
+        height:100%;color:var(--muted)
+      ">Loading…</div>
+    </div>
+  </div>`;
+}
+
+function loadHeatmapIframe(matchId) {
+  const wrap = document.getElementById('heatmap-frame-wrap');
+  if (!wrap) return;
+  const url = `/static/heatmaps/${matchId}.html`;
+  fetch(url, { method: 'HEAD' }).then(res => {
+    if (!res.ok) {
+      wrap.innerHTML = `<div style="
+        display:flex;flex-direction:column;align-items:center;
+        justify-content:center;height:100%;gap:.75rem;color:var(--muted)
+      ">
+        <span style="font-size:2rem">⏳</span>
+        <span>Kill map not generated yet.</span>
+        <span style="font-size:.8rem">Generated automatically after each new upload.</span>
+      </div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div id="heatmap-loading" style="
+        position:absolute;inset:0;display:flex;align-items:center;
+        justify-content:center;color:var(--muted);background:#0d0d0d;z-index:1
+      ">Loading kill map…</div>
+      <iframe
+        src="${url}"
+        style="width:100%;height:100%;border:none;display:block"
+        onload="document.getElementById('heatmap-loading')?.remove()"
+      ></iframe>`;
+  }).catch(() => {
+    wrap.innerHTML = `<div style="
+      display:flex;align-items:center;justify-content:center;
+      height:100%;color:var(--muted)
+    ">Could not load kill map.</div>`;
+  });
 }
 
 function detailRaw(data) {
