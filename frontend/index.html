@@ -1205,7 +1205,7 @@ async function renderMatchDetail(id) {
 
   app.innerHTML = `
     ${detailHeader(data, header)}
-    ${detailStats(kills.length, rounds, hsRate)}
+    ${detailStats(kills.length, rounds.length, hsRate, data.ct_score, data.t_score)}
     ${detailRatings(ratings)}
     ${detailFlashClutch(ratings)}
     ${rounds.length  ? detailRounds(rounds)         : ''}
@@ -1252,16 +1252,14 @@ function detailMeta(m, header) {
   </div>`;
 }
 
-function detailStats(kills, rounds, hsRate) {
-  const ctWins = rounds.filter(r => r.winner === 'CT').length;
-  const tWins  = rounds.filter(r => r.winner === 'TERRORIST' || r.winner === 'T').length;
-  const score  = rounds.length
-    ? `<span class="side-ct">${ctWins}</span><span style="color:var(--muted);margin:0 .3rem">:</span><span class="side-t">${tWins}</span>`
+function detailStats(kills, rounds, hsRate, ctScore, tScore) {
+  const score = (ctScore != null && tScore != null)
+    ? `<span class="side-ct">${ctScore}</span><span style="color:var(--muted);margin:0 .3rem">:</span><span class="side-t">${tScore}</span>`
     : '—';
 
   return `<div class="card"><div class="stat-row">
     <div class="stat"><div class="num">${score}</div><div class="lbl">Score (CT : T)</div></div>
-    <div class="stat"><div class="num">${rounds.length}</div><div class="lbl">Rounds</div></div>
+    <div class="stat"><div class="num">${rounds}</div><div class="lbl">Rounds</div></div>
     <div class="stat"><div class="num">${kills}</div><div class="lbl">Kills</div></div>
     <div class="stat"><div class="num">${hsRate}%</div><div class="lbl">HS Rate</div></div>
   </div></div>`;

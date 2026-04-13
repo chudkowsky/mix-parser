@@ -26,6 +26,8 @@ def init_db(db_path: Path, data_dir: Path) -> None:
             ct_team_name  TEXT,
             t_team_name   TEXT,
             total_rounds  INTEGER,
+            ct_score      INTEGER,
+            t_score       INTEGER,
             uploaded_at   TEXT    NOT NULL,
             uploaded_by   TEXT
         );
@@ -71,6 +73,10 @@ def init_db(db_path: Path, data_dir: Path) -> None:
         conn.execute("ALTER TABLE matches ADD COLUMN file_hash TEXT")
     if "uploaded_by" not in existing_matches:
         conn.execute("ALTER TABLE matches ADD COLUMN uploaded_by TEXT")
+    if "ct_score" not in existing_matches:
+        conn.execute("ALTER TABLE matches ADD COLUMN ct_score INTEGER")
+    if "t_score" not in existing_matches:
+        conn.execute("ALTER TABLE matches ADD COLUMN t_score INTEGER")
 
     existing_pr = {r[1] for r in conn.execute("PRAGMA table_info(player_ratings)")}
     new_pr_cols = {
@@ -117,10 +123,15 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
     ct_team = header.get("team_clan_name_1") or header.get("team1_clan_name") or ct_name or "CT"
     t_team  = header.get("team_clan_name_2") or header.get("team2_clan_name") or t_name or "T"
 
+    # Score: count CT (winner==3) and T (winner==2) wins, skip warmup (total_rounds_played < 1)
+    game_rounds = [r for r in rounds if (r.get("total_rounds_played") or 0) >= 1]
+    ct_score = sum(1 for r in game_rounds if r.get("winner") == 'CT')
+    t_score  = sum(1 for r in game_rounds if r.get("winner") == 'T')
+
     cur = conn.execute(
         """INSERT INTO matches
-           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, uploaded_at, uploaded_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, ct_score, t_score, uploaded_at, uploaded_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             filename,
             file_hash,
@@ -129,7 +140,9 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
             header.get("patch_version") or header.get("demo_version_name"),
             ct_team,
             t_team,
-            len(rounds),
+            len(game_rounds),
+            ct_score or None,
+            t_score  or None,
             datetime.now(timezone.utc).isoformat(),
             uploaded_by,
         ),
