@@ -280,8 +280,21 @@
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
+      position: relative;
+      overflow: hidden;
     }
     .match-tile:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .tile-map-img {
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 45%;
+      object-fit: cover;
+      opacity: 0.12;
+      pointer-events: none;
+      border-radius: 0 8px 8px 0;
+      mask-image: linear-gradient(to right, transparent, black 40%);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 40%);
+    }
+    .match-tile:hover .tile-map-img { opacity: 0.2; transition: opacity 0.2s; }
     .tile-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
     .map-name { font-size: 1rem; font-weight: 700; color: var(--text); }
     .tile-date { font-size: 0.75rem; color: var(--muted); }
@@ -968,7 +981,12 @@ function matchesSection(matches) {
     const date = fmtDate(m.uploaded_at);
     const ratingNum = m.top_player_rating != null ? Number(m.top_player_rating).toFixed(2) : '—';
 
+    const mapImg = m.map_name
+      ? `<img class="tile-map-img" src="/static/maps/${encodeURIComponent(m.map_name)}.png" alt="" onerror="this.style.display='none'">`
+      : '';
+
     return `<div class="match-tile" onclick="navigate('match/${m.id}')">
+      ${mapImg}
       <div class="tile-top">
         <span class="map-name">${esc(m.map_name || 'Unknown Map')}</span>
         <span class="tile-date">${date}</span>
