@@ -830,14 +830,14 @@ function popcount(n) {
 
 // ── Leaderboard sort state ─────────────────────────────────────────────────────
 let _lbData   = { players: [], guests: [] };
-let _lbSort   = { key: 'avg_rating', dir: -1 }; // -1 = desc, 1 = asc
+let _lbSort   = { key: 'avg_rating', dir: 1 }; // 1 = desc, -1 = asc
 
 function lbSort(key) {
   if (_lbSort.key === key) {
     _lbSort.dir *= -1;
   } else {
     _lbSort.key = key;
-    _lbSort.dir = -1;
+    _lbSort.dir = 1;
   }
   const card = document.getElementById('leaderboard-card');
   if (card) card.outerHTML = leaderboardCard(_lbData);
