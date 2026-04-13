@@ -374,6 +374,25 @@
     .rating-row-meta b { color: var(--text); }
     .rating-num { font-size: 1.05rem; font-weight: 800; min-width: 3rem; text-align: right; }
     .formula-note { margin-top: 0.75rem; font-size: 0.7rem; color: #444; }
+    .detail-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; }
+    .detail-tab {
+      padding: 0.35rem 1rem; border-radius: 5px;
+      border: 1px solid var(--border); background: transparent;
+      color: var(--muted); font-size: 0.78rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .detail-tab:hover { border-color: var(--accent); color: var(--text); }
+    .detail-tab.active { border-color: var(--accent); color: var(--accent); }
+    .ov-row {
+      display: flex; align-items: center;
+      padding: 0.65rem 0.75rem; border-radius: 5px;
+      margin-bottom: 0.25rem; background: #111318; gap: 0.5rem;
+    }
+    .ov-row-name { font-size: 0.95rem; font-weight: 600; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ov-stat { display: flex; flex-direction: column; align-items: center; min-width: 2.8rem; }
+    .ov-stat-val { font-size: 0.95rem; font-weight: 700; }
+    .ov-stat-lbl { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
 
     .kv-grid { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1.25rem; font-size: 0.85rem; }
     .kv-grid dt { color: var(--text-dim); }
@@ -1178,6 +1197,8 @@ async function renderMatchDetail(id) {
   const rounds  = data.rounds  || [];
   const ratings = data.ratings || [];
   const header  = data.header  || {};
+  _currentRatings = ratings;
+  _ratingsTab     = 'overview';
 
   const hs = kills.filter(k => k.headshot).length;
   const hsRate = kills.length ? Math.round(hs / kills.length * 100) : 0;
@@ -1191,6 +1212,7 @@ async function renderMatchDetail(id) {
     ${kills.length   ? detailKills(kills)            : ''}
     ${detailBomb(data.bomb_events || {})}
     ${detailRaw(data)}
+    ${detailMeta(data, header)}
   `;
 }
 
@@ -1199,16 +1221,6 @@ function detailHeader(m, header) {
   const bgStyle = mapName
     ? `background-image: url('/static/maps/${encodeURIComponent(mapName)}.png')`
     : `background: #1a1c28`;
-
-  const entries = [
-    ['Server',      m.server_name || header.server_name || header.client_name || '—'],
-    ['Patch',       m.patch_version || header.patch_version || '—'],
-    ['Rounds',      m.total_rounds ?? '—'],
-    ['Uploaded',    fmtDate(m.uploaded_at)],
-    ...(m.uploaded_by ? [['Uploaded by', m.uploaded_by]] : []),
-    ['File',        m.filename || '—'],
-  ];
-  const rows = entries.map(([k,v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
 
   return `<div class="match-hero">
     <div class="match-hero-bg" style="${bgStyle}"></div>
@@ -1219,8 +1231,24 @@ function detailHeader(m, header) {
         ${isAdmin() ? `<button class="download-btn match-hero-admin" style="border-color:var(--red);color:var(--red);vertical-align:middle"
           onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
       </div>
-      <dl class="kv-grid">${rows}</dl>
     </div>
+  </div>`;
+}
+
+function detailMeta(m, header) {
+  const entries = [
+    ['Map',         m.map_name    || header.map_name    || '—'],
+    ['Server',      m.server_name || header.server_name || header.client_name || '—'],
+    ['Patch',       m.patch_version || header.patch_version || '—'],
+    ['Rounds',      m.total_rounds ?? '—'],
+    ['Uploaded',    fmtDate(m.uploaded_at)],
+    ...(m.uploaded_by ? [['Uploaded by', m.uploaded_by]] : []),
+    ['File',        m.filename || '—'],
+  ];
+  const rows = entries.map(([k,v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
+  return `<div class="card">
+    <div class="card-title">Match Info</div>
+    <dl class="kv-grid">${rows}</dl>
   </div>`;
 }
 
@@ -1241,15 +1269,28 @@ function mkBadges(mk) {
   ).join('');
 }
 
+let _ratingsTab = 'overview';
+
 function detailRatings(ratings) {
   const ct = ratings.filter(p => p.team === 'CT');
   const t  = ratings.filter(p => p.team === 'TERRORIST');
 
-  function rows(list) {
+  function overviewRows(list) {
+    return list.map(p => `<div class="ov-row">
+      <span class="ov-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
+      <div class="ov-stat"><span class="ov-stat-val ${rClass(p.rating)}">${Number(p.rating).toFixed(2)}</span><span class="ov-stat-lbl">Rating</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${p.kills}/${p.deaths}</span><span class="ov-stat-lbl">K/D</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${p.kast}%</span><span class="ov-stat-lbl">KAST</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${p.adr}</span><span class="ov-stat-lbl">ADR</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${p.hs_pct ?? '—'}%</span><span class="ov-stat-lbl">HS%</span></div>
+    </div>`).join('');
+  }
+
+  function detailRows(list) {
     return list.map(p => {
-      const mk  = typeof p.multi_kills === 'string' ? JSON.parse(p.multi_kills || '{}') : (p.multi_kills || {});
-      const ctR = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
-      const tR  = p.t_rating  != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>`  : '';
+      const mk     = typeof p.multi_kills === 'string' ? JSON.parse(p.multi_kills || '{}') : (p.multi_kills || {});
+      const ctR    = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
+      const tR     = p.t_rating  != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>`  : '';
       const clutch = p.clutch_total ? `${p.clutch_won}/${p.clutch_total}` : '';
       return `<div class="rating-row" style="flex-wrap:wrap;gap:.35rem">
         <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
@@ -1272,26 +1313,34 @@ function detailRatings(ratings) {
     }).join('');
   }
 
+  const isOverview = _ratingsTab === 'overview';
+  const board = isOverview
+    ? `<div class="rating-board">
+        <div class="rating-team ct"><h3>Counter-Terrorists</h3>${overviewRows(ct)}</div>
+        <div class="rating-team t"><h3>Terrorists</h3>${overviewRows(t)}</div>
+       </div>`
+    : `<div class="rating-board">
+        <div class="rating-team ct"><h3>Counter-Terrorists</h3>${detailRows(ct)}</div>
+        <div class="rating-team t"><h3>Terrorists</h3>${detailRows(t)}</div>
+       </div>
+       <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>`;
+
   // Opening kills table
-  const sorted = [...ratings].sort((a,b) => (b.opening_kills||0) - (a.opening_kills||0));
+  const sorted  = [...ratings].sort((a,b) => (b.opening_kills||0) - (a.opening_kills||0));
   const openers = sorted.filter(p => p.opening_attempts > 0).map(p => {
     const pct = p.opening_attempts ? Math.round(p.opening_kills / p.opening_attempts * 100) : 0;
-    return `<tr>
-      <td>${esc(p.name)}</td>
-      <td>${p.opening_kills ?? 0}</td>
-      <td>${p.opening_attempts ?? 0}</td>
-      <td>${pct}%</td>
-    </tr>`;
+    return `<tr><td>${esc(p.name)}</td><td>${p.opening_kills ?? 0}</td><td>${p.opening_attempts ?? 0}</td><td>${pct}%</td></tr>`;
   }).join('');
 
-  return `<div class="card">
-    <div class="card-title">HLTV 2.0 Rating</div>
-    <div class="rating-board">
-      <div class="rating-team ct"><h3>Counter-Terrorists</h3>${rows(ct)}</div>
-      <div class="rating-team t"><h3>Terrorists</h3>${rows(t)}</div>
+  return `<div class="card" id="ratings-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+      <div class="card-title" style="margin-bottom:0">HLTV 2.0 Rating</div>
+      <div class="detail-tabs">
+        <button class="detail-tab${isOverview ? ' active' : ''}" onclick="switchRatingsTab('overview')">Overview</button>
+        <button class="detail-tab${!isOverview ? ' active' : ''}" onclick="switchRatingsTab('details')">Details</button>
+      </div>
     </div>
-    <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>
-
+    ${board}
     ${openers ? `<div style="margin-top:1rem">
       <div class="card-title" style="margin-bottom:.5rem">Opening Duels</div>
       <div class="table-wrap"><table>
@@ -1301,6 +1350,14 @@ function detailRatings(ratings) {
     </div>` : ''}
   </div>`;
 }
+
+function switchRatingsTab(tab) {
+  _ratingsTab = tab;
+  const card = document.getElementById('ratings-card');
+  if (card) card.outerHTML = detailRatings(_currentRatings);
+}
+
+let _currentRatings = [];
 
 function detailFlashClutch(ratings) {
   const flashers = [...ratings]
