@@ -343,7 +343,10 @@ def delete_match(conn: sqlite3.Connection, match_id: int, data_dir: Path) -> boo
     return True
 
 
-def get_leaderboard(conn: sqlite3.Connection) -> list[dict]:
+REGULAR_PLAYER_MIN_MATCHES = 5
+
+
+def get_leaderboard(conn: sqlite3.Connection) -> dict:
     rows = conn.execute("""
         SELECT
             steamid,
@@ -370,4 +373,7 @@ def get_leaderboard(conn: sqlite3.Connection) -> list[dict]:
         GROUP BY steamid
         ORDER BY avg_rating DESC
     """).fetchall()
-    return [dict(r) for r in rows]
+    all_rows = [dict(r) for r in rows]
+    players = [r for r in all_rows if r["matches_played"] >= REGULAR_PLAYER_MIN_MATCHES]
+    guests  = [r for r in all_rows if r["matches_played"] <  REGULAR_PLAYER_MIN_MATCHES]
+    return {"players": players, "guests": guests}
