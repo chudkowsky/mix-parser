@@ -126,22 +126,33 @@
 
     /* ── Leaderboard table ── */
     /* ── Team Picker ─────────────────────────────────────────────────────── */
-    .tp-player-grid {
-      display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0;
-    }
-    .tp-chip {
-      display: flex; align-items: center; gap: 0.4rem;
-      padding: 0.35rem 0.75rem; border-radius: 20px;
-      border: 1px solid var(--border); background: #111318;
-      cursor: pointer; font-size: 0.82rem; transition: all 0.15s;
-      user-select: none;
-    }
-    .tp-chip:hover { border-color: var(--accent); }
-    .tp-chip.selected { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
-    .tp-chip .chip-rating { font-size: 0.72rem; opacity: 0.75; }
-    .tp-chip.selected .chip-rating { opacity: 0.65; }
-    .tp-counter { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .tp-counter { font-size: 0.85rem; color: var(--muted); margin-bottom: 0.75rem; }
     .tp-counter span { color: var(--accent); font-weight: 700; }
+    .tp-player-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; margin: 0 0 1rem; }
+    @media (max-width: 600px) { .tp-player-list { grid-template-columns: repeat(2, 1fr); } }
+    .tp-row {
+      display: flex; align-items: center;
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #111318;
+      cursor: pointer; font-size: 0.82rem;
+      transition: background 0.12s, border-color 0.12s;
+      user-select: none; gap: 0.5rem;
+    }
+    .tp-row:hover { background: #1a1c28; border-color: #2e3050; }
+    .tp-row:hover { background: #1a1c28; }
+    .tp-row.selected { background: #1e2110; }
+    .tp-row-check { width: 1rem; font-size: 0.72rem; color: var(--accent); visibility: hidden; flex-shrink: 0; }
+    .tp-row.selected .tp-row-check { visibility: visible; }
+    .tp-row-name { flex: 1; }
+    .tp-row.selected .tp-row-name { color: var(--accent); font-weight: 600; }
+    .tp-row-rating { font-size: 0.78rem; color: var(--muted); min-width: 2.5rem; text-align: right; }
+    .tp-row.selected .tp-row-rating { color: var(--accent); opacity: 0.8; }
+    .tp-row-maps { display: none; }
+    .tp-row-remove { font-size: 0.72rem; color: var(--muted); opacity: 0; padding: 0 0.15rem; flex-shrink: 0; }
+    .tp-row:hover .tp-row-remove { opacity: 0.5; }
+    .tp-row-remove:hover { opacity: 1 !important; color: var(--text); }
     .tp-generate-btn {
       padding: 0.55rem 1.5rem; background: var(--accent); color: #000;
       border: none; border-radius: 6px; font-weight: 700; font-size: 0.9rem;
@@ -202,17 +213,14 @@
     .tp-tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
     .tp-tab-diff { font-size: 0.65rem; font-weight: 400; opacity: 0.7; }
     .tp-tab.active .tp-tab-diff { opacity: 0.6; }
-    .tp-chip.custom { border-style: dashed; }
-    .chip-remove { margin-left: 0.2rem; opacity: 0.5; font-size: 0.7em; line-height: 1; }
-    .chip-remove:hover { opacity: 1; }
-    .tp-add-guest { margin: 1rem 0 1.25rem; padding: 0.75rem 1rem; background: #111318; border-radius: 8px; border: 1px solid var(--border); }
-    .tp-add-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.6rem; }
-    .tp-add-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
-    .tp-add-row input[type="text"] { flex: 1; min-width: 120px; padding: 0.4rem 0.6rem; background: #0d0f14; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.85rem; }
-    .tp-slider-wrap { display: flex; align-items: center; gap: 0.5rem; }
-    .tp-slider-wrap input[type="range"] { width: 120px; accent-color: var(--accent); }
-    .tp-slider-wrap span { min-width: 2.5rem; font-size: 0.85rem; font-weight: 700; color: var(--accent); }
-    .tp-add-btn { padding: 0.4rem 1rem; background: var(--accent); color: #000; border: none; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
+    .tp-add-guest { margin: 0.75rem 0 1rem; padding: 0.5rem 0.75rem; background: #111318; border-radius: 6px; border: 1px solid var(--border); }
+    .tp-add-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.4rem; }
+    .tp-add-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .tp-add-row input[type="text"] { flex: 1; min-width: 100px; padding: 0.3rem 0.5rem; background: #0d0f14; border: 1px solid var(--border); border-radius: 5px; color: var(--text); font-size: 0.78rem; }
+    .tp-slider-wrap { display: flex; align-items: center; gap: 0.4rem; }
+    .tp-slider-wrap input[type="range"] { width: 90px; accent-color: var(--accent); }
+    .tp-slider-wrap span { min-width: 2rem; font-size: 0.78rem; font-weight: 700; color: var(--accent); }
+    .tp-add-btn { padding: 0.3rem 0.75rem; background: var(--accent); color: #000; border: none; border-radius: 5px; font-weight: 700; font-size: 0.75rem; cursor: pointer; }
     .tp-add-btn:hover { background: #ffc030; }
 
     .lb-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -683,14 +691,18 @@ async function renderTeamPicker() {
 function buildTeamPickerHTML() {
   const count = _tpSelected.size;
 
-  const chips = _tpAllPlayers.map(p => {
+  const sortedPlayers = [..._tpAllPlayers].sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0));
+  const rows = sortedPlayers.map(p => {
     const sel = _tpSelected.has(p.steamid);
     const removeBtn = p._custom
-      ? `<span class="chip-remove" onclick="event.stopPropagation();tpRemoveCustom('${p.steamid}')" title="Remove">✕</span>`
+      ? `<span class="tp-row-remove" onclick="event.stopPropagation();tpRemoveCustom('${p.steamid}')" title="Remove">✕</span>`
       : '';
-    return `<div class="tp-chip${sel ? ' selected' : ''}${p._custom ? ' custom' : ''}" onclick="tpToggle('${p.steamid}')">
-      ${esc(p.name || p.steamid)}
-      <span class="chip-rating">${fmtRating(p.avg_rating)}</span>
+    const mapsLabel = p._custom ? `<span class="tp-row-maps">new</span>` : `<span class="tp-row-maps">${p.matches_played} maps</span>`;
+    return `<div class="tp-row${sel ? ' selected' : ''}" onclick="tpToggle('${p.steamid}')">
+      <span class="tp-row-check">✓</span>
+      <span class="tp-row-name">${esc(p.name || p.steamid)}</span>
+      ${mapsLabel}
+      <span class="tp-row-rating">${fmtRating(p.avg_rating)}</span>
       ${removeBtn}
     </div>`;
   }).join('');
@@ -699,11 +711,12 @@ function buildTeamPickerHTML() {
 
   return `<div class="card">
     <div class="card-title">Team Picker</div>
+    <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.75rem">Select exactly 10 players to generate balanced teams.</p>
     <div class="tp-counter">Selected: <span>${count}</span> / 10</div>
-    <div class="tp-player-grid">${chips}</div>
+    <div class="tp-player-list">${rows}</div>
 
     <div class="tp-add-guest">
-      <div class="tp-add-title">Add new player</div>
+      <div class="tp-add-title">Player not in the system? <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">Add manually with estimated rating</span></div>
       <div class="tp-add-row">
         <input id="tp-guest-name" type="text" placeholder="Name" maxlength="40" />
         <div class="tp-slider-wrap">
