@@ -209,7 +209,7 @@ def get_all_matches(conn: sqlite3.Connection) -> list[dict]:
     rows = conn.execute("""
         SELECT
             m.id, m.filename, m.map_name, m.server_name,
-            m.ct_team_name, m.t_team_name, m.total_rounds, m.uploaded_at, m.uploaded_by,
+            m.ct_team_name, m.t_team_name, m.total_rounds, m.ct_score, m.t_score, m.uploaded_at, m.uploaded_by,
             pr.name   AS top_player_name,
             pr.rating AS top_player_rating,
             pr.team   AS top_player_team

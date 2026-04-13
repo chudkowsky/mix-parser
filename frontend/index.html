@@ -374,6 +374,26 @@
     .rating-row-meta b { color: var(--text); }
     .rating-num { font-size: 1.05rem; font-weight: 800; min-width: 3rem; text-align: right; }
     .formula-note { margin-top: 0.75rem; font-size: 0.7rem; color: #444; }
+
+    /* ── Collapsible sections ── */
+    .collapsible-hdr {
+      cursor: pointer; user-select: none;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0 !important;
+    }
+    .collapsible-hdr:hover { opacity: 0.8; }
+    .collapsible-body {
+      display: grid; grid-template-rows: 0fr;
+      transition: grid-template-rows 0.25s ease;
+    }
+    .collapsible-body.open { grid-template-rows: 1fr; }
+    .collapsible-inner { overflow: hidden; }
+    .collapsible-inner > *:first-child { margin-top: 0.75rem; }
+    .chevron {
+      font-size: 0.65rem; color: var(--muted);
+      display: inline-block; transition: transform 0.25s ease;
+    }
+    .collapsible-hdr.open .chevron { transform: rotate(90deg); }
     .detail-tabs { display: flex; gap: 0.3rem; margin-bottom: 1rem; }
     .detail-tab {
       padding: 0.35rem 1rem; border-radius: 5px;
@@ -401,8 +421,8 @@
     /* ── Match hero ── */
     .match-hero {
       position: relative; border-radius: 10px; overflow: hidden;
-      margin-bottom: 1.25rem; min-height: 200px;
-      display: flex; flex-direction: column; justify-content: flex-end;
+      margin-bottom: 1.25rem; min-height: 240px;
+      display: flex; flex-direction: column; justify-content: center;
     }
     .match-hero-bg {
       position: absolute; inset: 0;
@@ -426,6 +446,15 @@
     .match-hero .kv-grid { font-size: 0.82rem; }
     .match-hero .kv-grid dt { color: rgba(255,255,255,0.45); }
     .match-hero .kv-grid dd { color: rgba(255,255,255,0.85); }
+    .match-hero-score {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0.5rem; margin-top: 0.5rem;
+      font-size: 3.5rem; font-weight: 900; line-height: 1;
+      text-shadow: 0 3px 12px rgba(0,0,0,0.9);
+    }
+    .match-hero-score-sep { color: rgba(255,255,255,0.35); font-weight: 300; }
+    .score-win  { color: #fff; }
+    .score-lose { color: rgba(255,255,255,0.38); }
 
     .tag {
       display: inline-block; padding: 0.15rem 0.5rem;
@@ -1070,11 +1099,17 @@ function renderMatchesSection() {
         ${isAdmin() ? `<button class="delete-btn" title="Remove match" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>` : ''}
       </div>
       <div class="tile-sides">
-        <span class="side-ct">CT</span>
-        <span class="side-sep">vs</span>
-        <span class="side-t">T</span>
+        ${m.ct_score != null && m.t_score != null
+          ? (() => {
+              const a = m.t_score, b = m.ct_score;
+              return `<span class="${a >= b ? 'score-win' : 'score-lose'}" style="font-size:1rem">${a}</span>
+                      <span class="side-sep">:</span>
+                      <span class="${b >= a ? 'score-win' : 'score-lose'}" style="font-size:1rem">${b}</span>`;
+            })()
+          : `<span style="color:var(--muted);font-size:.8rem">${m.total_rounds ?? '?'} rounds</span>`
+        }
       </div>
-      <div class="tile-rounds">${m.total_rounds ?? '?'} rounds${m.uploaded_by ? ` · <span style="color:var(--text-dim)">by ${esc(m.uploaded_by)}</span>` : ''}</div>
+      <div class="tile-rounds">${m.total_rounds != null ? `${m.total_rounds} rounds` : ''}${m.uploaded_by ? `${m.total_rounds != null ? ' · ' : ''}<span style="color:var(--text-dim)">by ${esc(m.uploaded_by)}</span>` : ''}</div>
       ${m.top_player_name ? `<div class="tile-mvp">
         <span class="mvp-label">MVP</span>
         <span class="mvp-name" title="${esc(m.top_player_name)}">${esc(m.top_player_name)}</span>
@@ -1205,14 +1240,14 @@ async function renderMatchDetail(id) {
 
   app.innerHTML = `
     ${detailHeader(data, header)}
-    ${detailStats(kills.length, rounds.length, hsRate, data.ct_score, data.t_score)}
     ${detailRatings(ratings)}
+    ${detailOpeningDuels(ratings)}
     ${detailFlashClutch(ratings)}
     ${rounds.length  ? detailRounds(rounds)         : ''}
     ${kills.length   ? detailKills(kills)            : ''}
     ${detailBomb(data.bomb_events || {})}
     ${detailRaw(data)}
-    ${detailMeta(data, header)}
+    ${detailMeta(data, header, kills.length, rounds.length, hsRate)}
   `;
 }
 
@@ -1222,25 +1257,39 @@ function detailHeader(m, header) {
     ? `background-image: url('/static/maps/${encodeURIComponent(mapName)}.png')`
     : `background: #1a1c28`;
 
+  const score = (m.ct_score != null && m.t_score != null)
+    ? (() => {
+        const a = m.t_score, b = m.ct_score;
+        const aW = a > b ? 'score-win' : (a < b ? 'score-lose' : 'score-win');
+        const bW = b > a ? 'score-win' : (b < a ? 'score-lose' : 'score-win');
+        return `<div class="match-hero-score">
+          <span class="${aW}">${a}</span>
+          <span class="match-hero-score-sep">:</span>
+          <span class="${bW}">${b}</span>
+        </div>`;
+      })()
+    : '';
+
   return `<div class="match-hero">
     <div class="match-hero-bg" style="${bgStyle}"></div>
     <div class="match-hero-overlay"></div>
-    <div class="match-hero-content">
-      <div class="match-hero-map">
-        ${esc(mapName || 'Unknown Map')}
-        ${isAdmin() ? `<button class="download-btn match-hero-admin" style="border-color:var(--red);color:var(--red);vertical-align:middle"
-          onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
-      </div>
+    <div class="match-hero-content" style="text-align:center;position:relative">
+      ${isAdmin() ? `<button class="download-btn match-hero-admin" style="position:absolute;right:0;top:0;border-color:var(--red);color:var(--red)"
+        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
+      <div class="match-hero-map" style="margin-bottom:0.25rem">${esc(mapName || 'Unknown Map')}</div>
+      ${score}
     </div>
   </div>`;
 }
 
-function detailMeta(m, header) {
+function detailMeta(m, header, killCount, roundCount, hsRate) {
   const entries = [
     ['Map',         m.map_name    || header.map_name    || '—'],
     ['Server',      m.server_name || header.server_name || header.client_name || '—'],
     ['Patch',       m.patch_version || header.patch_version || '—'],
-    ['Rounds',      m.total_rounds ?? '—'],
+    ['Rounds',      roundCount ?? m.total_rounds ?? '—'],
+    ['Kills',       killCount ?? '—'],
+    ['HS Rate',     hsRate != null ? `${hsRate}%` : '—'],
     ['Uploaded',    fmtDate(m.uploaded_at)],
     ...(m.uploaded_by ? [['Uploaded by', m.uploaded_by]] : []),
     ['File',        m.filename || '—'],
@@ -1321,21 +1370,14 @@ function detailRatings(ratings) {
   const isOverview = _ratingsTab === 'overview';
   const board = isOverview
     ? `<div class="rating-board">
-        <div class="rating-team ct"><h3>Counter-Terrorists</h3>${overviewRows(ct)}</div>
-        <div class="rating-team t"><h3>Terrorists</h3>${overviewRows(t)}</div>
+        <div class="rating-team ct"><h3>Team A</h3>${overviewRows(ct)}</div>
+        <div class="rating-team t"><h3>Team B</h3>${overviewRows(t)}</div>
        </div>`
     : `<div class="rating-board">
-        <div class="rating-team ct"><h3>Counter-Terrorists</h3>${detailRows(ct)}</div>
-        <div class="rating-team t"><h3>Terrorists</h3>${detailRows(t)}</div>
+        <div class="rating-team ct"><h3>Team A</h3>${detailRows(ct)}</div>
+        <div class="rating-team t"><h3>Team B</h3>${detailRows(t)}</div>
        </div>
        <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>`;
-
-  // Opening kills table
-  const sorted  = [...ratings].sort((a,b) => (b.opening_kills||0) - (a.opening_kills||0));
-  const openers = sorted.filter(p => p.opening_attempts > 0).map(p => {
-    const pct = p.opening_attempts ? Math.round(p.opening_kills / p.opening_attempts * 100) : 0;
-    return `<tr><td>${esc(p.name)}</td><td>${p.opening_kills ?? 0}</td><td>${p.opening_attempts ?? 0}</td><td>${pct}%</td></tr>`;
-  }).join('');
 
   return `<div class="card" id="ratings-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
@@ -1346,13 +1388,6 @@ function detailRatings(ratings) {
       </div>
     </div>
     ${board}
-    ${openers ? `<div style="margin-top:1rem">
-      <div class="card-title" style="margin-bottom:.5rem">Opening Duels</div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Player</th><th>Opening Kills</th><th>Duels</th><th>Win%</th></tr></thead>
-        <tbody>${openers}</tbody>
-      </table></div>
-    </div>` : ''}
   </div>`;
 }
 
@@ -1364,6 +1399,39 @@ function switchRatingsTab(tab) {
 
 let _currentRatings = [];
 
+function collapsibleCard(id, title, content, cardStyle = '') {
+  return `<div class="card"${cardStyle ? ` style="${cardStyle}"` : ''}>
+    <div class="card-title collapsible-hdr" id="hdr-${id}" onclick="toggleSection('${id}')">
+      ${title}<span class="chevron">&#9658;</span>
+    </div>
+    <div class="collapsible-body" id="${id}">
+      <div class="collapsible-inner">${content}</div>
+    </div>
+  </div>`;
+}
+
+function toggleSection(id) {
+  const body = document.getElementById(id);
+  const hdr  = document.getElementById('hdr-' + id);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  hdr.classList.toggle('open', open);
+}
+
+function detailOpeningDuels(ratings) {
+  const sorted = [...ratings].sort((a,b) => (b.opening_kills||0) - (a.opening_kills||0));
+  const rows = sorted.filter(p => p.opening_attempts > 0).map(p => {
+    const pct = p.opening_attempts ? Math.round(p.opening_kills / p.opening_attempts * 100) : 0;
+    return `<tr><td>${esc(p.name)}</td><td>${p.opening_kills ?? 0}</td><td>${p.opening_attempts ?? 0}</td><td>${pct}%</td></tr>`;
+  }).join('');
+  if (!rows) return '';
+  const content = `<div class="table-wrap"><table>
+    <thead><tr><th>Player</th><th>Opening Kills</th><th>Duels</th><th>Win%</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+  return collapsibleCard('sec-opening', 'Opening Duels', content);
+}
+
 function detailFlashClutch(ratings) {
   const flashers = [...ratings]
     .filter(p => p.flash_enemies > 0)
@@ -1372,8 +1440,6 @@ function detailFlashClutch(ratings) {
   const clutchers = [...ratings]
     .filter(p => p.clutch_total > 0)
     .sort((a, b) => b.clutch_total - a.clutch_total);
-
-  if (!flashers.length && !clutchers.length) return '';
 
   const flashRows = flashers.map(p => `<tr>
     <td>${esc(p.name)}</td>
@@ -1390,22 +1456,13 @@ function detailFlashClutch(ratings) {
     </tr>`;
   }).join('');
 
-  return `<div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
-    ${flashRows ? `<div>
-      <div class="card-title" style="margin-bottom:.5rem">Flash Effectiveness</div>
-      <table>
-        <thead><tr><th>Player</th><th>Enemies Blinded</th><th>Avg Duration</th></tr></thead>
-        <tbody>${flashRows}</tbody>
-      </table>
-    </div>` : '<div></div>'}
-    ${clutchRows ? `<div>
-      <div class="card-title" style="margin-bottom:.5rem">Clutch Rounds (1vX)</div>
-      <table>
-        <thead><tr><th>Player</th><th>Won/Total</th><th>Win%</th></tr></thead>
-        <tbody>${clutchRows}</tbody>
-      </table>
-    </div>` : '<div></div>'}
-  </div>`;
+  const flashCard = flashRows ? collapsibleCard('sec-flash', 'Flash Effectiveness',
+    `<table><thead><tr><th>Player</th><th>Enemies Blinded</th><th>Avg Duration</th></tr></thead><tbody>${flashRows}</tbody></table>`) : '';
+
+  const clutchCard = clutchRows ? collapsibleCard('sec-clutch', 'Clutch Rounds (1vX)',
+    `<table><thead><tr><th>Player</th><th>Won/Total</th><th>Win%</th></tr></thead><tbody>${clutchRows}</tbody></table>`) : '';
+
+  return flashCard + clutchCard;
 }
 
 function detailRounds(rounds) {
@@ -1415,13 +1472,11 @@ function detailRounds(rounds) {
     <td>${r.reason ?? '—'}</td>
     <td>${r.tick ?? '—'}</td>
   </tr>`).join('');
-  return `<div class="card">
-    <div class="card-title">Rounds (${rounds.length})</div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>#</th><th>Winner</th><th>Reason</th><th>Tick</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>
-  </div>`;
+  const content = `<div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Winner</th><th>Reason</th><th>Tick</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+  return collapsibleCard('sec-rounds', `Rounds (${rounds.length})`, content);
 }
 
 function detailKills(kills) {
@@ -1434,13 +1489,11 @@ function detailKills(kills) {
     <td>${k.total_rounds_played ?? '—'}</td>
   </tr>`).join('');
   const note = kills.length > 300 ? `<p style="color:var(--muted);font-size:.8rem;margin-top:.5rem">Showing first 300 of ${kills.length}</p>` : '';
-  return `<div class="card">
-    <div class="card-title">Kill Feed (${kills.length})</div>
-    <div class="table-wrap"><table>
-      <thead><tr><th>Attacker</th><th>Victim</th><th>Weapon</th><th></th><th>Distance</th><th>Round</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>${note}
-  </div>`;
+  const content = `<div class="table-wrap"><table>
+    <thead><tr><th>Attacker</th><th>Victim</th><th>Weapon</th><th></th><th>Distance</th><th>Round</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>${note}`;
+  return collapsibleCard('sec-kills', `Kill Feed (${kills.length})`, content);
 }
 
 function detailBomb(bombEvents) {
@@ -1453,7 +1506,7 @@ function detailBomb(bombEvents) {
       </table></div>`;
   }).join('');
   if (!sections) return '';
-  return `<div class="card"><div class="card-title">Bomb Events</div>${sections}</div>`;
+  return collapsibleCard('sec-bomb', 'Bomb Events', sections);
 }
 
 function detailRaw(data) {
