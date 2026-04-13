@@ -379,6 +379,35 @@
     .kv-grid dt { color: var(--text-dim); }
     .kv-grid dd { word-break: break-all; }
 
+    /* ── Match hero ── */
+    .match-hero {
+      position: relative; border-radius: 10px; overflow: hidden;
+      margin-bottom: 1.25rem; min-height: 200px;
+      display: flex; flex-direction: column; justify-content: flex-end;
+    }
+    .match-hero-bg {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      z-index: 0;
+    }
+    .match-hero-overlay {
+      position: absolute; inset: 0; z-index: 1;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.75) 60%, var(--bg) 100%);
+    }
+    .match-hero-content {
+      position: relative; z-index: 2;
+      padding: 1.5rem 1.75rem 1.75rem;
+    }
+    .match-hero-map {
+      font-size: 1.6rem; font-weight: 800; color: #fff;
+      letter-spacing: 0.02em; margin-bottom: 0.75rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+    }
+    .match-hero-admin { float: right; }
+    .match-hero .kv-grid { font-size: 0.82rem; }
+    .match-hero .kv-grid dt { color: rgba(255,255,255,0.45); }
+    .match-hero .kv-grid dd { color: rgba(255,255,255,0.85); }
+
     .tag {
       display: inline-block; padding: 0.15rem 0.5rem;
       border-radius: 4px; font-size: 0.75rem; font-weight: 600;
@@ -1166,8 +1195,12 @@ async function renderMatchDetail(id) {
 }
 
 function detailHeader(m, header) {
+  const mapName = m.map_name || header.map_name || '';
+  const bgStyle = mapName
+    ? `background-image: url('/static/maps/${encodeURIComponent(mapName)}.png')`
+    : `background: #1a1c28`;
+
   const entries = [
-    ['Map',         m.map_name    || header.map_name    || '—'],
     ['Server',      m.server_name || header.server_name || header.client_name || '—'],
     ['Patch',       m.patch_version || header.patch_version || '—'],
     ['Rounds',      m.total_rounds ?? '—'],
@@ -1176,13 +1209,18 @@ function detailHeader(m, header) {
     ['File',        m.filename || '—'],
   ];
   const rows = entries.map(([k,v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
-  return `<div class="card">
-    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-      Match Info
-      ${isAdmin() ? `<button class="download-btn" style="border-color:var(--red);color:var(--red)"
-        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
+
+  return `<div class="match-hero">
+    <div class="match-hero-bg" style="${bgStyle}"></div>
+    <div class="match-hero-overlay"></div>
+    <div class="match-hero-content">
+      <div class="match-hero-map">
+        ${esc(mapName || 'Unknown Map')}
+        ${isAdmin() ? `<button class="download-btn match-hero-admin" style="border-color:var(--red);color:var(--red);vertical-align:middle"
+          onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
+      </div>
+      <dl class="kv-grid">${rows}</dl>
     </div>
-    <dl class="kv-grid">${rows}</dl>
   </div>`;
 }
 
