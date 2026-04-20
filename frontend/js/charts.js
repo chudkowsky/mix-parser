@@ -5,15 +5,21 @@ const _charts = {};
 function chartsSection(stats, leaderboard) {
   if (!stats.player_history.length) return '';
   const rangeBtns = [10,20,50,0].map(n =>
-    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:3px 10px;border-radius:4px;border:1px solid #2a2d38;background:#0d0d0d;color:#888;cursor:pointer;font-size:.78rem">${n === 0 ? 'All' : 'Last '+n}</button>`
+    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:4px 11px;border-radius:5px;border:1px solid #444;background:transparent;color:#888;font-weight:normal;font-size:.78rem;cursor:pointer">${n === 0 ? 'All' : 'Last '+n}</button>`
   ).join('');
   return `<div class="charts-row">
     <div class="card" style="margin-bottom:0">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span>Player Rating History</span>
+        <div>
+          <div>Player Rating History</div>
+          <div style="font-size:.75rem;font-weight:normal;color:#555;margin-top:2px">Hover a line or legend to isolate a player</div>
+        </div>
         <div id="dashRangeBtns" style="display:flex;gap:4px">${rangeBtns}</div>
       </div>
-      <div class="chart-wrap"><canvas id="chartRating" height="220"></canvas></div>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:1;min-width:0"><canvas id="chartRating" height="240"></canvas></div>
+        <div id="dashLegend" style="display:flex;flex-direction:column;gap:6px;padding-top:4px;min-width:120px"></div>
+      </div>
     </div>
     <div class="card" style="margin-bottom:0">
       <div class="card-title">Maps Played</div>
@@ -45,41 +51,69 @@ function renderCharts(stats, leaderboard) {
     playerMatches[sid].matches.sort((a, b) => new Date(a.date) - new Date(b.date));
   }
 
-  function buildRatingChart(n) {
-    // slice each player to last n matches (0 = all)
-    const sliced = {};
-    for (const [sid, { name, matches }] of Object.entries(playerMatches)) {
-      sliced[sid] = { name, matches: n === 0 ? matches : matches.slice(-n) };
-    }
 
-    // highlight active button
+  // precompute full cumulative avg per player (all matches)
+  const playerCumul = {};
+  for (const [sid, { name, matches }] of Object.entries(playerMatches)) {
+    playerCumul[sid] = {
+      name,
+      cumul: matches.map((_, j) =>
+        matches.slice(0, j + 1).reduce((s, m) => s + m.rating, 0) / (j + 1)
+      ),
+      matches,
+    };
+  }
+
+  let _hoveredIdx = null;
+
+  function setHover(idx) {
+    if (!_charts.rating) return;
+    _hoveredIdx = idx;
+    _charts.rating.data.datasets.forEach((ds, i) => {
+      const active = idx === null || i === idx;
+      ds.borderWidth        = active ? 2.5 : 0.5;
+      ds.borderColor        = active ? PALETTE[i % PALETTE.length] : PALETTE[i % PALETTE.length] + '30';
+      ds.pointRadius        = active ? 5   : 3;
+      ds.pointBackgroundColor = active ? PALETTE[i % PALETTE.length] : PALETTE[i % PALETTE.length] + '50';
+    });
+    _charts.rating.update('none');
+
+    document.querySelectorAll('#dashLegend [data-li]').forEach(el => {
+      const i = parseInt(el.dataset.li);
+      el.style.opacity = (idx === null || i === idx) ? '1' : '0.3';
+    });
+  }
+
+  function buildRatingChart(n) {
     document.querySelectorAll('#dashRangeBtns button').forEach(btn => {
       const active = parseInt(btn.dataset.range) === n;
-      btn.style.background  = active ? '#f0a500' : '#0d0d0d';
+      btn.style.background  = active ? '#f0a500' : 'transparent';
       btn.style.color       = active ? '#000'    : '#888';
-      btn.style.borderColor = active ? '#f0a500' : '#2a2d38';
+      btn.style.borderColor = active ? '#f0a500' : '#444';
       btn.style.fontWeight  = active ? '700'     : 'normal';
     });
 
-    const lineDatasets = topPlayers
-      .filter(sid => sliced[sid]?.matches.length)
-      .map((sid, i) => {
-        const { name, matches } = sliced[sid];
-        const cumulAvg = matches.map((_, j) =>
-          matches.slice(0, j + 1).reduce((s, m) => s + m.rating, 0) / (j + 1)
-        );
-        return {
-          label: name,
-          data: cumulAvg.map((a, j) => ({ x: j + 1, y: a })),
-          borderColor: PALETTE[i % PALETTE.length],
-          backgroundColor: PALETTE[i % PALETTE.length] + '22',
-          tension: 0.35,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-          type: 'line',
-        };
-      });
+    const activeSids = topPlayers.filter(sid => playerCumul[sid]);
+
+    const lineDatasets = activeSids.map((sid, i) => {
+      const { cumul, matches } = playerCumul[sid];
+      const start = n === 0 ? 0 : Math.max(0, matches.length - n);
+      const slicedCumul = cumul.slice(start);
+      const color = PALETTE[i % PALETTE.length];
+      return {
+        label: playerCumul[sid].name,
+        data: slicedCumul.map((a, j) => ({ x: j + 1, y: a })),
+        borderColor: color,
+        borderWidth: 0.5,
+          pointBackgroundColor: color,
+        pointBorderColor: 'transparent',
+        pointRadius: 3,
+        pointHoverRadius: 7,
+        tension: 0.35,
+        fill: false,
+        type: 'line',
+      };
+    });
 
     if (_charts.rating) _charts.rating.destroy();
     const ctxR = document.getElementById('chartRating');
@@ -90,12 +124,10 @@ function renderCharts(stats, leaderboard) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: 400 },
         interaction: { mode: 'index', axis: 'x', intersect: false },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 10 },
-          },
+          legend: { display: false },
           tooltip: {
             backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
             titleColor: '#f0a500', bodyColor: '#ccc',
@@ -104,23 +136,58 @@ function renderCharts(stats, leaderboard) {
         },
         scales: {
           x: {
-            type: 'linear',
-            min: 0.5,
+            type: 'linear', min: 0.5,
             title: { display: true, text: 'Match #', color: '#555', font: { size: 10 } },
             ticks: { color: '#666', font: { size: 11 }, precision: 0 },
             grid: { color: '#1e2030' },
           },
-          y: {
-            min: 0.5,
-            max: 2.5,
-            ticks: { color: '#666', font: { size: 11 }, stepSize: 0.25 },
-            grid: { color: '#1e2030' },
-          },
+          y: (() => {
+            const allVals = lineDatasets.flatMap(ds => ds.data.map(p => p.y));
+            const lo = Math.min(...allVals);
+            const hi = Math.max(...allVals);
+            const pad = (hi - lo) * 0.15 || 0.1;
+            return {
+              min: Math.max(0, +(lo - pad).toFixed(2)),
+              max: +(hi + pad).toFixed(2),
+              ticks: { color: '#666', font: { size: 11 }, stepSize: 0.1, callback: v => v.toFixed(1) },
+              grid: { color: '#1e2030' },
+            };
+          })(),
+        },
+        onHover(evt, _items, chart) {
+          if (!evt.native) { setHover(null); return; }
+          const nearest = chart.getElementsAtEventForMode(evt.native, 'nearest', { intersect: false }, false);
+          setHover(nearest.length ? nearest[0].datasetIndex : null);
         },
       },
     });
+
+    if (_charts._leaveFn) ctxR.removeEventListener('mouseleave', _charts._leaveFn);
+    _charts._leaveFn = () => setHover(null);
+    ctxR.addEventListener('mouseleave', _charts._leaveFn);
+
+    // build right-side legend with trend deltas
+    const legend = document.getElementById('dashLegend');
+    if (!legend) return;
+    legend.innerHTML = activeSids.map((sid, i) => {
+      const { name, cumul, matches } = playerCumul[sid];
+      const start = n === 0 ? 0 : Math.max(0, matches.length - n);
+      const sc = cumul.slice(start);
+      const trend = sc.length > 1 ? sc[sc.length - 1] - sc[0] : 0;
+      const trendStr = (trend >= 0 ? '+' : '') + trend.toFixed(2);
+      const trendCol = trend >= 0 ? '#4caf7d' : '#e05555';
+      const color = PALETTE[i % PALETTE.length];
+      const dashStyle = `border-top: 2px solid ${color}; width:22px; height:0`;
+      return `<div data-li="${i}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"
+          onmouseenter="window._dashHover(${i})" onmouseleave="window._dashHover(null)">
+          <span style="${dashStyle}"></span>
+          <span style="color:#aaa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+          <span style="color:${trendCol};font-weight:600;min-width:36px;text-align:right">${trendStr}</span>
+        </div>`;
+    }).join('');
   }
 
+  window._dashHover       = (idx) => setHover(idx);
   window.setDashboardRange = (n) => buildRatingChart(n);
   buildRatingChart(10);
 
