@@ -5,6 +5,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/data:/app/backend/data
+      - ./frontend/heatmaps:/app/frontend/heatmaps
       - ./uploads:/app/uploads
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
