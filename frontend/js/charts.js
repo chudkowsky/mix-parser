@@ -4,9 +4,15 @@ const _charts = {};
 
 function chartsSection(stats, leaderboard) {
   if (!stats.player_history.length) return '';
+  const rangeBtns = [10,20,50,0].map(n =>
+    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:3px 10px;border-radius:4px;border:1px solid #2a2d38;background:#0d0d0d;color:#888;cursor:pointer;font-size:.78rem">${n === 0 ? 'All' : 'Last '+n}</button>`
+  ).join('');
   return `<div class="charts-row">
     <div class="card" style="margin-bottom:0">
-      <div class="card-title">Player Rating History</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span>Player Rating History</span>
+        <div id="dashRangeBtns" style="display:flex;gap:4px">${rangeBtns}</div>
+      </div>
       <div class="chart-wrap"><canvas id="chartRating" height="220"></canvas></div>
     </div>
     <div class="card" style="margin-bottom:0">
@@ -24,71 +30,99 @@ function renderCharts(stats, leaderboard) {
     '#ff8c42','#00c9c8','#f06292','#aed581','#90a4ae',
   ];
 
-  // ── Rating history line chart ─────────────────────────────────────────────
-  const matchOrder = [];
-  const seen = new Set();
-  for (const r of stats.player_history) {
-    if (!seen.has(r.match_id)) {
-      seen.add(r.match_id);
-      matchOrder.push({ id: r.match_id, map: r.map_name, date: r.uploaded_at });
-    }
-  }
-
+  // ── Rating history — cumulative avg per player ────────────────────────────
   const topPlayers = leaderboard.slice(0, 8).map(p => p.steamid);
 
-  const ratingMap = {};
+  // group per-player matches in chronological order
+  const playerMatches = {};
   for (const r of stats.player_history) {
     if (!topPlayers.includes(r.steamid)) continue;
-    if (!ratingMap[r.steamid]) ratingMap[r.steamid] = { name: r.name, ratings: {} };
-    ratingMap[r.steamid].ratings[r.match_id] = r.rating;
+    if (!playerMatches[r.steamid]) playerMatches[r.steamid] = { name: r.name, matches: [] };
+    playerMatches[r.steamid].matches.push({ match_id: r.match_id, date: r.uploaded_at, rating: r.rating });
+  }
+  // ensure chronological order
+  for (const sid of Object.keys(playerMatches)) {
+    playerMatches[sid].matches.sort((a, b) => new Date(a.date) - new Date(b.date));
   }
 
-  const lineLabels = matchOrder.map(m => `${m.map.replace('de_', '')} #${m.id}`);
+  function buildRatingChart(n) {
+    // slice each player to last n matches (0 = all)
+    const sliced = {};
+    for (const [sid, { name, matches }] of Object.entries(playerMatches)) {
+      sliced[sid] = { name, matches: n === 0 ? matches : matches.slice(-n) };
+    }
 
-  const lineDatasets = topPlayers
-    .filter(sid => ratingMap[sid])
-    .map((sid, i) => {
-      const { name, ratings } = ratingMap[sid];
-      return {
-        label: name,
-        data: matchOrder.map(m => ratings[m.id] ?? null),
-        borderColor: PALETTE[i % PALETTE.length],
-        backgroundColor: PALETTE[i % PALETTE.length] + '22',
-        tension: 0.3,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        spanGaps: true,
-        borderWidth: 2,
-      };
+    // highlight active button
+    document.querySelectorAll('#dashRangeBtns button').forEach(btn => {
+      const active = parseInt(btn.dataset.range) === n;
+      btn.style.background  = active ? '#f0a500' : '#0d0d0d';
+      btn.style.color       = active ? '#000'    : '#888';
+      btn.style.borderColor = active ? '#f0a500' : '#2a2d38';
+      btn.style.fontWeight  = active ? '700'     : 'normal';
     });
 
-  if (_charts.rating) _charts.rating.destroy();
-  const ctxR = document.getElementById('chartRating');
-  if (!ctxR) return;
-  _charts.rating = new Chart(ctxR, {
-    type: 'line',
-    data: { labels: lineLabels, datasets: lineDatasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 10 },
+    const lineDatasets = topPlayers
+      .filter(sid => sliced[sid]?.matches.length)
+      .map((sid, i) => {
+        const { name, matches } = sliced[sid];
+        const cumulAvg = matches.map((_, j) =>
+          matches.slice(0, j + 1).reduce((s, m) => s + m.rating, 0) / (j + 1)
+        );
+        return {
+          label: name,
+          data: cumulAvg.map((a, j) => ({ x: j + 1, y: a })),
+          borderColor: PALETTE[i % PALETTE.length],
+          backgroundColor: PALETTE[i % PALETTE.length] + '22',
+          tension: 0.35,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          type: 'line',
+        };
+      });
+
+    if (_charts.rating) _charts.rating.destroy();
+    const ctxR = document.getElementById('chartRating');
+    if (!ctxR) return;
+    _charts.rating = new Chart(ctxR, {
+      type: 'scatter',
+      data: { datasets: lineDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', axis: 'x', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 10 },
+          },
+          tooltip: {
+            backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
+            titleColor: '#f0a500', bodyColor: '#ccc',
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '—'}` },
+          },
         },
-        tooltip: {
-          backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
-          titleColor: '#f0a500', bodyColor: '#ccc',
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '—'}` },
+        scales: {
+          x: {
+            type: 'linear',
+            min: 0.5,
+            title: { display: true, text: 'Match #', color: '#555', font: { size: 10 } },
+            ticks: { color: '#666', font: { size: 11 }, precision: 0 },
+            grid: { color: '#1e2030' },
+          },
+          y: {
+            min: 0.5,
+            max: 2.5,
+            ticks: { color: '#666', font: { size: 11 }, stepSize: 0.25 },
+            grid: { color: '#1e2030' },
+          },
         },
       },
-      scales: {
-        x: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1e2030' } },
-        y: { min: 0, ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1e2030' } },
-      },
-    },
-  });
+    });
+  }
+
+  window.setDashboardRange = (n) => buildRatingChart(n);
+  buildRatingChart(10);
 
   // ── Map distribution donut ────────────────────────────────────────────────
   const mapNames  = Object.keys(stats.map_distribution);
