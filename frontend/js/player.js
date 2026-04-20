@@ -101,7 +101,14 @@ async function renderPlayerProfile(steamid) {
       </table></div>
     </div>` : ''}
     <div class="card">
-      <div class="card-title">Match History (newest first)</div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <span>Rating Trend</span>
+        <div style="display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:normal;color:#888">
+          <label for="ratingSmoothing">Smoothing:</label>
+          <input type="range" id="ratingSmoothing" min="1" max="10" value="5" style="width:110px;accent-color:#f0a500;cursor:pointer">
+          <span id="ratingSmoothingLabel" style="color:#f0a500;min-width:60px">5 matches</span>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="chartPlayerRating" height="200"></canvas></div>
     </div>
     ${matchRows ? `<div class="card">
@@ -112,45 +119,117 @@ async function renderPlayerProfile(steamid) {
     </div>` : '<div class="card"><p class="empty-state">No match history.</p></div>'}
   `;
 
-  const mHistory = (data.matches || []);
+  const mHistory = [...(data.matches || [])].reverse(); // oldest first
   if (mHistory.length > 0) {
-    const labels  = mHistory.map(m => `${(m.map_name || '?').replace('de_', '')} #${m.match_id}`);
-    const ratings = mHistory.map(m => m.rating);
-    if (_charts.playerRating) _charts.playerRating.destroy();
-    const ctx = document.getElementById('chartPlayerRating');
-    if (ctx) {
-      _charts.playerRating = new Chart(ctx, {
-        type: 'line',
+    const ratings = mHistory.map(m => parseFloat(m.rating) || 0);
+    const N = ratings.length;
+    const refLine = Array.from({ length: N }, (_, i) => ({ x: i + 1, y: 1.2 }));
+
+    function rollingAvg(arr, w) {
+      return arr.map((_, i) => {
+        const slice = arr.slice(Math.max(0, i - w + 1), i + 1);
+        return slice.reduce((s, v) => s + v, 0) / slice.length;
+      });
+    }
+
+    function buildPlayerRatingChart(w) {
+      const avgs = rollingAvg(ratings, w);
+      if (_charts.playerRating) _charts.playerRating.destroy();
+      const canvas = document.getElementById('chartPlayerRating');
+      if (!canvas) return;
+      _charts.playerRating = new Chart(canvas, {
+        type: 'scatter',
         data: {
-          labels,
-          datasets: [{
-            label: data.name || steamid,
-            data: ratings,
-            borderColor: '#f0a500',
-            backgroundColor: '#f0a50022',
-            tension: 0.3,
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            borderWidth: 2,
-          }],
+          datasets: [
+            {
+              label: w === 1 ? 'Per-match' : `${w}-match avg`,
+              data: avgs.map((a, i) => ({ x: i + 1, y: a })),
+              type: 'line',
+              borderColor: '#f0a500',
+              backgroundColor: 'rgba(240,165,0,0.06)',
+              borderWidth: 2.5,
+              pointRadius: 0,
+              pointHoverRadius: 5,
+              pointHoverBackgroundColor: '#f0a500',
+              tension: 0.35,
+              fill: false,
+              order: 1,
+            },
+            {
+              label: 'Threshold 1.2',
+              data: refLine,
+              type: 'line',
+              borderColor: 'rgba(100,200,100,0.45)',
+              borderWidth: 1.5,
+              borderDash: [6, 5],
+              pointRadius: 0,
+              pointHoverRadius: 0,
+              fill: false,
+              order: 2,
+            },
+          ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          animation: { duration: 180 },
+          interaction: { mode: 'index', axis: 'x', intersect: false },
           plugins: {
-            legend: { display: false },
+            legend: {
+              labels: { color: '#666', usePointStyle: true, pointStyleWidth: 10, font: { size: 11 } },
+            },
             tooltip: {
-              backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
-              titleColor: '#f0a500', bodyColor: '#ccc',
-              callbacks: { label: ctx => ` Rating: ${ctx.parsed.y?.toFixed(2) ?? '—'}` },
+              backgroundColor: '#1a1c24',
+              borderColor: '#2a2d38',
+              borderWidth: 1,
+              titleColor: '#f0a500',
+              bodyColor: '#aaa',
+              callbacks: {
+                title(items) {
+                  const i = items[0].dataIndex;
+                  const m = mHistory[i];
+                  const date = (m.uploaded_at || '').slice(0, 10);
+                  const map  = (m.map_name || '?').replace('de_', '');
+                  return `#${i + 1}  ·  ${date}  ·  ${map}`;
+                },
+                label(item) {
+                  if (item.datasetIndex === 0) return ` Avg (${w}m): ${item.parsed.y.toFixed(2)}`;
+                  return null;
+                },
+                filter: item => item.datasetIndex !== 1,
+              },
             },
           },
           scales: {
-            x: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1e2030' } },
-            y: { min: 0, ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1e2030' } },
+            x: {
+              type: 'linear',
+              min: 0.5,
+              max: N + 0.5,
+              title: { display: true, text: 'Match #', color: '#555', font: { size: 10 } },
+              ticks: { color: '#555', font: { size: 10 }, stepSize: Math.max(1, Math.floor(N / 15)), precision: 0 },
+              grid: { color: '#1e2030' },
+            },
+            y: {
+              min: 0.5,
+              max: 2.5,
+              ticks: { color: '#555', font: { size: 10 }, stepSize: 0.25 },
+              grid: { color: '#1e2030' },
+            },
           },
         },
       });
     }
+
+    const slider = document.getElementById('ratingSmoothing');
+    const sliderLabel = document.getElementById('ratingSmoothingLabel');
+    if (slider) {
+      slider.max = Math.min(10, N);
+      slider.oninput = () => {
+        const w = parseInt(slider.value);
+        sliderLabel.textContent = `${w} match${w !== 1 ? 'es' : ''}`;
+        buildPlayerRatingChart(w);
+      };
+    }
+    buildPlayerRatingChart(parseInt(slider?.value ?? 5));
   }
 }
