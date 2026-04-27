@@ -460,17 +460,32 @@ def parse_demo(file_path: str | Path) -> dict:
         header           = p.parse_header()
         available_events = p.list_game_events()
 
-        kills   = p.parse_event("player_death", player=DEATH_PLAYER_FIELDS, other=DEATH_OTHER_FIELDS)
-        damages = p.parse_event("player_hurt",  player=DAMAGE_PLAYER_FIELDS, other=DAMAGE_OTHER_FIELDS)
-        rounds  = p.parse_event("round_end",    other=ROUND_OTHER_FIELDS)
+        try:
+            kills = p.parse_event("player_death", player=DEATH_PLAYER_FIELDS, other=DEATH_OTHER_FIELDS)
+        except Exception:
+            # Fall back without position fields if any player entity is missing
+            kills = p.parse_event("player_death", player=["team_name", "health"], other=DEATH_OTHER_FIELDS)
+
+        try:
+            damages = p.parse_event("player_hurt", player=DAMAGE_PLAYER_FIELDS, other=DAMAGE_OTHER_FIELDS)
+        except Exception:
+            damages = p.parse_event("player_hurt", other=DAMAGE_OTHER_FIELDS)
+
+        rounds  = p.parse_event("round_end", other=ROUND_OTHER_FIELDS)
 
         spawn_df = None
         if "player_spawn" in available_events:
-            spawn_df = p.parse_event("player_spawn", player=["team_name"], other=["total_rounds_played"])
+            try:
+                spawn_df = p.parse_event("player_spawn", player=["team_name"], other=["total_rounds_played"])
+            except Exception:
+                pass
 
         blind_df = None
         if "player_blind" in available_events:
-            blind_df = p.parse_event("player_blind", player=["team_name"], other=["total_rounds_played"])
+            try:
+                blind_df = p.parse_event("player_blind", player=["team_name"], other=["total_rounds_played"])
+            except Exception:
+                pass
 
         # round number -> winning team name
         round_winners = {
