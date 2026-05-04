@@ -38,6 +38,10 @@ class CreateSeasonRequest(BaseModel):
     end_date: str | None = None
 
 
+class CloseSeasonRequest(BaseModel):
+    end_date: str | None = None
+
+
 def require_admin(authorization: str | None = Header(default=None)):
     token = None
     if authorization and authorization.startswith("Bearer "):
@@ -273,6 +277,7 @@ async def create_season(
 @app.post("/admin/seasons/{season_id}/close")
 async def close_season(
     season_id: int,
+    body: CloseSeasonRequest = CloseSeasonRequest(),
     conn: sqlite3.Connection = Depends(get_db),
     _: None = Depends(require_admin),
 ):
@@ -282,7 +287,7 @@ async def close_season(
     if not season["is_active"]:
         raise HTTPException(400, "Season is already closed")
 
-    end_date = datetime.now(timezone.utc).isoformat()
+    end_date = body.end_date or datetime.now(timezone.utc).isoformat()
     database.close_season(conn, season_id, end_date)
 
     lb          = database.get_season_leaderboard(conn, season_id)

@@ -156,8 +156,11 @@ function adminSeasonCard() {
     const badge = s.is_active
       ? `<span style="font-size:.65rem;background:#1a3a1f;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:.05rem .35rem;margin-left:.4rem">LIVE</span>`
       : `<span style="font-size:.65rem;color:var(--muted);margin-left:.4rem">closed</span>`;
+    const today = new Date().toISOString().slice(0, 10);
     const actions = s.is_active
-      ? `<button class="admin-season-btn danger" onclick="adminCloseSeason(${s.id}, this)">Close Season</button>`
+      ? `<input type="date" id="close-date-${s.id}" value="${today}"
+           style="padding:.28rem .5rem;background:#111318;border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.78rem">
+         <button class="admin-season-btn danger" onclick="adminCloseSeason(${s.id}, this)">Close Season</button>`
       : `<span class="season-summary-link" style="margin-left:0" onclick="navigate('season/${s.id}')">Summary →</span>
          <button class="admin-season-btn danger" style="margin-left:.5rem" onclick="adminDeleteSeason(${s.id}, this)">Delete</button>`;
     return `<div class="admin-season-row">
@@ -249,9 +252,12 @@ async function adminDeleteSeason(seasonId, btn) {
 }
 
 async function adminCloseSeason(seasonId, btn) {
-  const season = _seasons.find(s => s.id === seasonId);
-  const name   = season?.name || `Season #${seasonId}`;
-  if (!confirm(`Close "${name}"?\n\nThis will lock the leaderboard and generate season awards. Cannot be undone.`)) return;
+  const season  = _seasons.find(s => s.id === seasonId);
+  const name    = season?.name || `Season #${seasonId}`;
+  const dateVal = document.getElementById(`close-date-${seasonId}`)?.value;
+  const endDate = dateVal ? dateVal + 'T23:59:59+00:00' : null;
+
+  if (!confirm(`Close "${name}"?\nEnd date: ${dateVal || 'now'}\n\nThis will lock the leaderboard and generate season awards. Cannot be undone.`)) return;
 
   btn.disabled = true;
   btn.textContent = '…';
@@ -259,7 +265,8 @@ async function adminCloseSeason(seasonId, btn) {
   try {
     const res = await fetch(`/admin/seasons/${seasonId}/close`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${getAdminToken()}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAdminToken()}` },
+      body: JSON.stringify({ end_date: endDate }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || res.statusText);
