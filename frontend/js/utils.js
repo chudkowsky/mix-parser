@@ -32,9 +32,9 @@ function rClass(r) {
 function mkBadges(mk) {
   if (!mk) return '';
   const labels = { '2': '2K', '3': '3K', '4': '4K', '5': 'ACE' };
-  const colors  = { '2': '#888', '3': '#f0a500', '4': '#5baeff', '5': '#4caf7d' };
+  const colors  = { '2': '#7a8aaa', '3': '#F5C542', '4': '#7EB8D4', '5': '#4ADE80' };
   return Object.entries(mk).map(([k, v]) =>
-    `<span style="background:#111318;border:1px solid ${colors[k]};color:${colors[k]};border-radius:3px;padding:.1rem .35rem;font-size:.7rem;font-weight:700;margin-left:.2rem">${labels[k]}×${v}</span>`
+    `<span style="background:var(--bg-deep);border:1px solid ${colors[k]};color:${colors[k]};font-family:'IBM Plex Mono',monospace;padding:.1rem .35rem;font-size:.7rem;font-weight:700;margin-left:.2rem">${labels[k]}×${v}</span>`
   ).join('');
 }
 

@@ -34,7 +34,7 @@ async function renderSeasonsList() {
   app.innerHTML = `
     <div class="card">
       <div class="card-title">Seasons</div>
-      <div class="seasons-list">${cards}</div>
+      <div class="card-body"><div class="seasons-list">${cards}</div></div>
     </div>`;
 }
 
@@ -57,7 +57,7 @@ async function renderSeasonSummary(seasonId) {
   const startDate = fmtDate(season.start_date);
   const endDate   = season.end_date ? fmtDate(season.end_date) : 'Ongoing';
   const statusTag = season.is_active
-    ? `<span style="font-size:.72rem;background:#1a3a1f;color:var(--green);border:1px solid var(--green);border-radius:4px;padding:.1rem .5rem;margin-left:.6rem">LIVE</span>`
+    ? `<span class="seasons-list-live" style="margin-left:.6rem">LIVE</span>`
     : '';
 
   const awardCards = awards.map(a => `
@@ -85,30 +85,28 @@ async function renderSeasonSummary(seasonId) {
 
   app.innerHTML = `
     <div class="card">
-      <div class="season-hero">
-        <div>
-          <div class="card-title" style="font-size:1rem;letter-spacing:.04em;margin-bottom:.25rem">
-            ${esc(season.name)}${statusTag}
-          </div>
-          <div class="season-hero-meta">${startDate} — ${endDate}</div>
-        </div>
-        <div class="season-hero-stats">
-          <div>
+      <div class="card-title" style="justify-content:space-between">
+        <span>${esc(season.name)}${statusTag}</span>
+        <div class="season-hero-stats" style="font-size:inherit">
+          <div style="text-align:right">
             <div class="season-hero-stat-num">${stats.total_matches}</div>
             <div class="season-hero-stat-lbl">Matches</div>
           </div>
-          <div>
+          <div style="text-align:right">
             <div class="season-hero-stat-num">${stats.total_players}</div>
             <div class="season-hero-stat-lbl">Players</div>
           </div>
         </div>
+      </div>
+      <div class="card-body" style="padding-top:8px">
+        <div class="season-hero-meta">${startDate} — ${endDate}</div>
       </div>
     </div>
 
     ${awards.length ? `
     <div class="card">
       <div class="card-title">Hall of Fame</div>
-      <div class="awards-grid">${awardCards}</div>
+      <div class="card-body"><div class="awards-grid">${awardCards}</div></div>
     </div>` : (season.is_active ? '' : '<div class="card"><p class="empty-state">No awards for this season.</p></div>')}
 
     ${top_players.length ? `

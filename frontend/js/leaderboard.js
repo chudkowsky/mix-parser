@@ -102,9 +102,9 @@ function leaderboardCard(lb) {
   `;
   if (!players.length && !guests.length) {
     return `<div class="card" id="leaderboard-card">
-      ${seasonTabs()}
       <div class="card-title">Leaderboard${seasonThresholdNote}</div>
-      <p class="empty-state">No data yet — upload some demos.</p>
+      ${seasonTabs()}
+      <p class="empty-state" style="padding:2rem 16px">No data yet — upload some demos.</p>
     </div>`;
   }
 
@@ -186,7 +186,7 @@ function leaderboardCard(lb) {
     </div>` : `<p class="empty-state">No regulars yet.</p>`;
 
   const guestsSection = (!_currentSeasonId && guests.length) ? `
-    <div class="card-title" style="margin-top:1.5rem">Guests <span style="font-size:0.75rem;font-weight:normal;opacity:0.6">(fewer than 5 maps)</span></div>
+    <div class="card-title" style="margin-top:0;border-top:1px solid var(--border)">Guests <span style="font-size:0.75rem;font-weight:normal;text-transform:none;letter-spacing:0;opacity:0.6">(fewer than 5 maps)</span></div>
     <div class="table-wrap">
       <table class="lb-table">
         ${thead}
@@ -195,8 +195,9 @@ function leaderboardCard(lb) {
     </div>` : '';
 
   return `<div class="card" id="leaderboard-card">
+    <div class="card-title">Leaderboard${seasonThresholdNote}</div>
     ${seasonTabs()}
-    ${header}
+    <div class="card-body" style="padding-bottom:0">${header}</div>
     ${playersTable}
     ${guestsSection}
   </div>`;

@@ -4,18 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>mix-parser — CS2 Demo Analyzer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
 <header>
-  <h1 onclick="navigate('')">mix<span>-parser</span></h1>
+  <div class="logo" onclick="navigate('')">
+    <div class="logo-diamond"></div>
+    <span class="logo-mix">MIX</span>
+    <span class="logo-parser">PARSER</span>
+  </div>
+  <div class="header-divider"></div>
   <nav class="header-nav">
     <a class="nav-link" id="nav-leaderboard" onclick="navigate('')">Leaderboard</a>
     <a class="nav-link" id="nav-seasons"     onclick="navigate('seasons')">Seasons</a>
   </nav>
-  <div style="flex:1"></div>
   <button id="back-btn" onclick="history.back()">← Back</button>
   <button id="admin-btn" class="logged-out" onclick="adminBtnClick()">Admin</button>
 </header>

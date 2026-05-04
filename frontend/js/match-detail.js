@@ -88,7 +88,7 @@ function detailMeta(m, header, killCount, roundCount, hsRate) {
   const rows = entries.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
   return `<div class="card">
     <div class="card-title">Match Info</div>
-    <dl class="kv-grid">${rows}</dl>
+    <div class="card-body"><dl class="kv-grid">${rows}</dl></div>
   </div>`;
 }
 
@@ -147,14 +147,14 @@ function detailRatings(ratings) {
        <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>`;
 
   return `<div class="card" id="ratings-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
-      <div class="card-title" style="margin-bottom:0">HLTV 2.0 Rating</div>
-      <div class="detail-tabs">
+    <div class="card-title" style="justify-content:space-between">
+      <span>HLTV 2.0 Rating</span>
+      <div class="detail-tabs" style="margin:0">
         <button class="detail-tab${isOverview ? ' active' : ''}" onclick="switchRatingsTab('overview')">Overview</button>
         <button class="detail-tab${!isOverview ? ' active' : ''}" onclick="switchRatingsTab('details')">Details</button>
       </div>
     </div>
-    ${board}
+    <div class="card-body">${board}</div>
   </div>`;
 }
 
@@ -167,10 +167,10 @@ function switchRatingsTab(tab) {
 function collapsibleCard(id, title, content, cardStyle = '') {
   return `<div class="card"${cardStyle ? ` style="${cardStyle}"` : ''}>
     <div class="card-title collapsible-hdr" id="hdr-${id}" onclick="toggleSection('${id}')">
-      ${title}<span class="chevron">&#9658;</span>
+      <span>${title}</span><span class="chevron">&#9658;</span>
     </div>
     <div class="collapsible-body" id="${id}">
-      <div class="collapsible-inner">${content}</div>
+      <div class="collapsible-inner card-body">${content}</div>
     </div>
   </div>`;
 }
@@ -342,6 +342,6 @@ function detailRaw(data) {
         <button class="download-btn">Download full JSON</button>
       </a>
     </div>
-    <pre style="background:#111318;border:1px solid var(--border);border-radius:6px;padding:1rem;font-size:.78rem;overflow:auto;max-height:280px;color:#ccc">${esc(summary)}</pre>
+    <pre style="background:var(--bg-deep);border:1px solid var(--border);padding:1rem;font-family:'IBM Plex Mono',monospace;font-size:.78rem;overflow:auto;max-height:280px;color:var(--text-sub)">${esc(summary)}</pre>
   </div>`;
 }

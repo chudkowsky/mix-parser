@@ -37,7 +37,7 @@ async function renderDashboard() {
 
 function uploadCard() {
   return `<div class="card">
-    <div class="card-title">Upload Demo</div>
+    <div class="card-title accent-blue">Upload Demo</div>
     <div class="upload-area">
       <div class="drop-zone" id="dropzone">
         <input type="file" id="fileInput" accept=".dem,.bz2,.gz" />
@@ -154,12 +154,12 @@ function adminSeasonCard() {
     const start = fmtDate(s.start_date);
     const end   = s.end_date ? fmtDate(s.end_date) : 'ongoing';
     const badge = s.is_active
-      ? `<span style="font-size:.65rem;background:#1a3a1f;color:var(--green);border:1px solid var(--green);border-radius:3px;padding:.05rem .35rem;margin-left:.4rem">LIVE</span>`
+      ? `<span style="font-family:'Barlow Condensed',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.08em;background:var(--green-dim);color:var(--green);border:1px solid var(--green);padding:.05rem .35rem;margin-left:.4rem">LIVE</span>`
       : `<span style="font-size:.65rem;color:var(--muted);margin-left:.4rem">closed</span>`;
     const today = new Date().toISOString().slice(0, 10);
     const actions = s.is_active
       ? `<input type="date" id="close-date-${s.id}" value="${today}"
-           style="padding:.28rem .5rem;background:#111318;border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.78rem">
+           style="padding:.28rem .5rem;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.78rem">
          <button class="admin-season-btn danger" onclick="adminCloseSeason(${s.id}, this)">Close Season</button>`
       : `<span class="season-summary-link" style="margin-left:0" onclick="navigate('season/${s.id}')">Summary →</span>
          <button class="admin-season-btn danger" style="margin-left:.5rem" onclick="adminDeleteSeason(${s.id}, this)">Delete</button>`;
@@ -175,7 +175,8 @@ function adminSeasonCard() {
   const today = new Date().toISOString().slice(0, 10);
 
   return `<div class="card" id="admin-season-card">
-    <div class="card-title" style="color:var(--red)">Admin — Season Management</div>
+    <div class="card-title accent-red">Admin — Season Management</div>
+    <div class="card-body">
 
     ${seasonRows || '<p class="empty-state" style="margin-bottom:1rem">No seasons yet.</p>'}
 
@@ -185,17 +186,18 @@ function adminSeasonCard() {
         <div style="display:flex;flex-direction:column;gap:.3rem">
           <label style="font-size:.72rem;color:var(--muted)">Name</label>
           <input id="season-name-input" type="text" placeholder="e.g. Maj 2025" maxlength="40"
-            style="padding:.4rem .7rem;background:#111318;border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem;width:160px"
+            style="padding:.4rem .7rem;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.85rem;width:160px"
             onkeydown="if(event.key==='Enter') adminCreateSeason()" />
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem">
           <label style="font-size:.72rem;color:var(--muted)">Start date</label>
           <input id="season-start-input" type="date" value="${today}"
-            style="padding:.4rem .7rem;background:#111318;border:1px solid var(--border);border-radius:5px;color:var(--text);font-size:.85rem" />
+            style="padding:.4rem .7rem;background:var(--bg-deep);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.85rem" />
         </div>
         <button class="admin-season-btn" onclick="adminCreateSeason()">Create</button>
       </div>
       <div id="admin-season-status" style="font-size:.8rem;min-height:1.2em;margin-top:.5rem"></div>
+    </div>
     </div>
   </div>`;
 }

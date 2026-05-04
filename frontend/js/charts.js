@@ -5,18 +5,18 @@ const _charts = {};
 function chartsSection(stats, leaderboard) {
   if (!stats.player_history.length) return '';
   const rangeBtns = [10,20,50,0].map(n =>
-    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:4px 11px;border-radius:5px;border:1px solid #444;background:transparent;color:#888;font-weight:normal;font-size:.78rem;cursor:pointer">${n === 0 ? 'All' : 'Last '+n}</button>`
+    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:3px 10px;border:1px solid #2e3850;background:transparent;color:#7a8aaa;font-weight:normal;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${n === 0 ? 'All' : 'Last '+n}</button>`
   ).join('');
   return `<div class="charts-row">
     <div class="card" style="margin-bottom:0">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
           <div>Player Rating History</div>
-          <div style="font-size:.75rem;font-weight:normal;color:#555;margin-top:2px">Hover a line or legend to isolate a player</div>
+          <div style="font-size:.75rem;font-weight:normal;color:var(--text-muted);margin-top:2px;font-family:'IBM Plex Mono',monospace">Hover a line or legend to isolate a player</div>
         </div>
         <div id="dashRangeBtns" style="display:flex;gap:4px">${rangeBtns}</div>
       </div>
-      <div style="display:flex;gap:16px;align-items:flex-start">
+      <div style="display:flex;gap:16px;align-items:flex-start;padding:14px 16px">
         <div style="flex:1;min-width:0"><canvas id="chartRating" height="240"></canvas></div>
         <div id="dashLegend" style="display:flex;flex-direction:column;gap:6px;padding-top:4px;min-width:120px"></div>
       </div>
@@ -32,8 +32,8 @@ function renderCharts(stats, leaderboard) {
   if (!stats.player_history.length) return;
 
   const PALETTE = [
-    '#f0a500','#5baeff','#4caf7d','#e05555','#b47fe8',
-    '#ff8c42','#00c9c8','#f06292','#aed581','#90a4ae',
+    '#F5C542','#7EB8D4','#4ADE80','#F87171','#b47fe8',
+    '#FB923C','#00c9c8','#f06292','#aed581','#90a4ae',
   ];
 
   // ── Rating history — cumulative avg per player ────────────────────────────
@@ -87,9 +87,9 @@ function renderCharts(stats, leaderboard) {
   function buildRatingChart(n) {
     document.querySelectorAll('#dashRangeBtns button').forEach(btn => {
       const active = parseInt(btn.dataset.range) === n;
-      btn.style.background  = active ? '#f0a500' : 'transparent';
-      btn.style.color       = active ? '#000'    : '#888';
-      btn.style.borderColor = active ? '#f0a500' : '#444';
+      btn.style.background  = active ? '#F5C542' : 'transparent';
+      btn.style.color       = active ? '#000'    : '#7a8aaa';
+      btn.style.borderColor = active ? '#F5C542' : '#2e3850';
       btn.style.fontWeight  = active ? '700'     : 'normal';
     });
 
@@ -129,17 +129,17 @@ function renderCharts(stats, leaderboard) {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
-            titleColor: '#f0a500', bodyColor: '#ccc',
+            backgroundColor: '#131824', borderColor: '#2e3850', borderWidth: 1,
+            titleColor: '#F5C542', bodyColor: '#dde3f0',
             callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2) ?? '—'}` },
           },
         },
         scales: {
           x: {
             type: 'linear', min: 0.5,
-            title: { display: true, text: 'Match #', color: '#555', font: { size: 10 } },
-            ticks: { color: '#666', font: { size: 11 }, precision: 0 },
-            grid: { color: '#1e2030' },
+            title: { display: true, text: 'Match #', color: '#3e4e6a', font: { size: 10 } },
+            ticks: { color: '#3e4e6a', font: { size: 11 }, precision: 0 },
+            grid: { color: '#263044' },
           },
           y: (() => {
             const allVals = lineDatasets.flatMap(ds => ds.data.map(p => p.y));
@@ -149,8 +149,8 @@ function renderCharts(stats, leaderboard) {
             return {
               min: Math.max(0, +(lo - pad).toFixed(2)),
               max: +(hi + pad).toFixed(2),
-              ticks: { color: '#666', font: { size: 11 }, stepSize: 0.1, callback: v => v.toFixed(1) },
-              grid: { color: '#1e2030' },
+              ticks: { color: '#3e4e6a', font: { size: 11 }, stepSize: 0.1, callback: v => v.toFixed(1) },
+              grid: { color: '#263044' },
             };
           })(),
         },
@@ -175,13 +175,13 @@ function renderCharts(stats, leaderboard) {
       const sc = cumul.slice(start);
       const trend = sc.length > 1 ? sc[sc.length - 1] - sc[0] : 0;
       const trendStr = (trend >= 0 ? '+' : '') + trend.toFixed(2);
-      const trendCol = trend >= 0 ? '#4caf7d' : '#e05555';
+      const trendCol = trend >= 0 ? '#4ADE80' : '#F87171';
       const color = PALETTE[i % PALETTE.length];
       const dashStyle = `border-top: 2px solid ${color}; width:22px; height:0`;
       return `<div data-li="${i}" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px"
           onmouseenter="window._dashHover(${i})" onmouseleave="window._dashHover(null)">
           <span style="${dashStyle}"></span>
-          <span style="color:#aaa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+          <span style="color:#7a8aaa;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
           <span style="color:${trendCol};font-weight:600;min-width:36px;text-align:right">${trendStr}</span>
         </div>`;
     }).join('');
@@ -206,7 +206,7 @@ function renderCharts(stats, leaderboard) {
       datasets: [{
         data: mapCounts,
         backgroundColor: mapColors,
-        borderColor: '#0f1117',
+        borderColor: '#181e2c',
         borderWidth: 3,
         hoverOffset: 6,
       }],
@@ -218,11 +218,11 @@ function renderCharts(stats, leaderboard) {
       plugins: {
         legend: {
           position: 'bottom',
-          labels: { color: '#888', font: { size: 11 }, boxWidth: 12, padding: 10 },
+          labels: { color: '#7a8aaa', font: { size: 11 }, boxWidth: 12, padding: 10 },
         },
         tooltip: {
-          backgroundColor: '#1a1c24', borderColor: '#2a2d38', borderWidth: 1,
-          titleColor: '#f0a500', bodyColor: '#ccc',
+          backgroundColor: '#131824', borderColor: '#2e3850', borderWidth: 1,
+          titleColor: '#F5C542', bodyColor: '#dde3f0',
           callbacks: {
             label: ctx => {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);

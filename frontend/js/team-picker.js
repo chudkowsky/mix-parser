@@ -195,8 +195,8 @@ function buildTeamsHTML(pool) {
   const teamRows = (list, targetLabel) => [...list]
     .sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0))
     .map(p => `<div class="tp-team-row tp-team-row-movable" onclick="tpMovePlayer('${p.steamid}')" title="Move to ${targetLabel}">
-      <span>${esc(p.name || p.steamid)}</span>
-      <span class="${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
+      <span class="tp-team-row-name">${esc(p.name || p.steamid)}</span>
+      <span class="tp-team-row-rating ${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
       <span class="tp-move-arrow">${targetLabel === 'Team B' ? '→' : '←'}</span>
     </div>`).join('');
 
@@ -378,7 +378,7 @@ function renderDraftBoard() {
     <div class="tp-draft-board">
       <div class="tp-draft-zone tp-draft-zone-a"
         ondragover="tpDraftDragOver(event)" ondragleave="tpDraftDragLeave(event)" ondrop="tpDraftDrop(event,'A')">
-        <div class="tp-team-title" style="color:#5baeff">Team A <span class="tp-draft-count">${_tpDraftTeamA.length}/5</span></div>
+        <div class="tp-team-title" style="color:#7EB8D4">Team A <span class="tp-draft-count">${_tpDraftTeamA.length}/5</span></div>
         ${sortTeam(_tpDraftTeamA).map(p => playerCard(p, true)).join('')}
         <div class="tp-team-avg">Avg: <strong>${avgOf(_tpDraftTeamA)}</strong></div>
       </div>
@@ -396,7 +396,7 @@ function renderDraftBoard() {
 
       <div class="tp-draft-zone tp-draft-zone-b"
         ondragover="tpDraftDragOver(event)" ondragleave="tpDraftDragLeave(event)" ondrop="tpDraftDrop(event,'B')">
-        <div class="tp-team-title" style="color:#f0a500">Team B <span class="tp-draft-count">${_tpDraftTeamB.length}/5</span></div>
+        <div class="tp-team-title" style="color:#F5C542">Team B <span class="tp-draft-count">${_tpDraftTeamB.length}/5</span></div>
         ${sortTeam(_tpDraftTeamB).map(p => playerCard(p, true)).join('')}
         <div class="tp-team-avg">Avg: <strong>${avgOf(_tpDraftTeamB)}</strong></div>
       </div>
@@ -407,8 +407,8 @@ function renderDraftBoard() {
 // ── Spinning wheel ────────────────────────────────────────────────────────────
 
 const WHEEL_COLORS = [
-  '#5baeff','#f0a500','#4caf7d','#e05555',
-  '#9b59b6','#1abc9c','#e67e22','#e91e63',
+  '#7EB8D4','#F5C542','#4ADE80','#F87171',
+  '#b47fe8','#1abc9c','#FB923C','#e91e63',
   '#00bcd4','#8bc34a',
 ];
 
