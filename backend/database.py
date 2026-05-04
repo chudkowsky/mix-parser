@@ -66,6 +66,29 @@ def init_db(db_path: Path, data_dir: Path) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_pr_match   ON player_ratings(match_id);
         CREATE INDEX IF NOT EXISTS idx_pr_steamid ON player_ratings(steamid);
+
+        CREATE TABLE IF NOT EXISTS seasons (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            name        TEXT    NOT NULL,
+            start_date  TEXT    NOT NULL,
+            end_date    TEXT,
+            is_active   INTEGER NOT NULL DEFAULT 1,
+            created_at  TEXT    NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS player_titles (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            season_id   INTEGER NOT NULL REFERENCES seasons(id),
+            steamid     TEXT    NOT NULL,
+            award_type  TEXT    NOT NULL,
+            award_label TEXT    NOT NULL,
+            flavor_text TEXT,
+            stat_value  TEXT,
+            earned_at   TEXT    NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_pt_steamid ON player_titles(steamid);
+        CREATE INDEX IF NOT EXISTS idx_pt_season  ON player_titles(season_id);
     """)
     # Migrate existing DBs — add any missing columns
     existing_matches = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
@@ -378,7 +401,8 @@ def get_leaderboard(conn: sqlite3.Connection) -> dict:
             ROUND(SUM(kast * rounds_played)   / SUM(rounds_played), 1) AS avg_kast,
             ROUND(SUM(kpr  * rounds_played)   / SUM(rounds_played), 3) AS avg_kpr,
             ROUND(SUM(dpr  * rounds_played)   / SUM(rounds_played), 3) AS avg_dpr,
-            ROUND(SUM(hs_pct * rounds_played) / SUM(rounds_played), 1) AS avg_hs_pct,
+            ROUND(SUM(hs_pct      * rounds_played) / SUM(rounds_played), 1) AS avg_hs_pct,
+            ROUND(SUM(survive_pct * rounds_played) / SUM(rounds_played), 1) AS avg_survive_pct,
             SUM(kills)               AS total_kills,
             SUM(deaths)              AS total_deaths,
             SUM(assists)             AS total_assists,
@@ -399,3 +423,157 @@ def get_leaderboard(conn: sqlite3.Connection) -> dict:
     players = [r for r in all_rows if r["matches_played"] >= REGULAR_PLAYER_MIN_MATCHES]
     guests  = [r for r in all_rows if r["matches_played"] <  REGULAR_PLAYER_MIN_MATCHES]
     return {"players": players, "guests": guests}
+
+
+# ── Seasons ───────────────────────────────────────────────────────────────────
+
+
+def create_season(conn: sqlite3.Connection, name: str, start_date: str, end_date: str | None = None) -> int:
+    cur = conn.execute(
+        "INSERT INTO seasons (name, start_date, end_date, is_active, created_at) VALUES (?, ?, ?, 1, ?)",
+        (name, start_date, end_date, datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def get_season(conn: sqlite3.Connection, season_id: int) -> dict | None:
+    row = conn.execute("SELECT * FROM seasons WHERE id = ?", (season_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_all_seasons(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute("SELECT * FROM seasons ORDER BY start_date DESC").fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_active_season(conn: sqlite3.Connection) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM seasons WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1"
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def close_season(conn: sqlite3.Connection, season_id: int, end_date: str) -> None:
+    conn.execute(
+        "UPDATE seasons SET is_active = 0, end_date = ? WHERE id = ?",
+        (end_date, season_id),
+    )
+    conn.commit()
+
+
+def delete_season(conn: sqlite3.Connection, season_id: int) -> bool:
+    row = conn.execute("SELECT is_active FROM seasons WHERE id = ?", (season_id,)).fetchone()
+    if row is None:
+        return False
+    conn.execute("DELETE FROM player_titles WHERE season_id = ?", (season_id,))
+    conn.execute("DELETE FROM seasons WHERE id = ?", (season_id,))
+    conn.commit()
+    return True
+
+
+SEASON_PARTICIPATION_THRESHOLD = 0.10  # must have played ≥10% of season matches
+
+
+def get_season_leaderboard(conn: sqlite3.Connection, season_id: int) -> dict | None:
+    season = get_season(conn, season_id)
+    if not season:
+        return None
+
+    start = season["start_date"]
+    end   = season["end_date"] or datetime.now(timezone.utc).isoformat()
+
+    total_matches = conn.execute(
+        "SELECT COUNT(*) FROM matches WHERE uploaded_at >= ? AND uploaded_at <= ?",
+        (start, end),
+    ).fetchone()[0]
+
+    # floor(20% of total matches), minimum 1 — threshold grows only at full multiples of 5
+    min_matches = max(1, total_matches // 5)
+
+    rows = conn.execute("""
+        SELECT
+            pr.steamid,
+            MAX(pr.name) AS name,
+            ROUND(SUM(pr.rating       * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating,
+            ROUND(SUM(pr.adr          * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_adr,
+            ROUND(SUM(pr.kast         * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_kast,
+            ROUND(SUM(pr.kpr          * pr.rounds_played) / SUM(pr.rounds_played), 3) AS avg_kpr,
+            ROUND(SUM(pr.dpr          * pr.rounds_played) / SUM(pr.rounds_played), 3) AS avg_dpr,
+            ROUND(SUM(pr.hs_pct       * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_hs_pct,
+            ROUND(SUM(pr.survive_pct  * pr.rounds_played) / SUM(pr.rounds_played), 1) AS avg_survive_pct,
+            SUM(pr.kills)               AS total_kills,
+            SUM(pr.deaths)              AS total_deaths,
+            SUM(pr.assists)             AS total_assists,
+            SUM(pr.rounds_played)       AS total_rounds,
+            SUM(pr.opening_kills)       AS total_opening_kills,
+            SUM(pr.opening_attempts)    AS total_opening_attempts,
+            SUM(pr.flash_enemies)       AS total_flash_enemies,
+            SUM(pr.clutch_won)          AS total_clutch_won,
+            SUM(pr.clutch_total)        AS total_clutch_total,
+            SUM(pr.knife_kills)         AS total_knife_kills,
+            SUM(pr.zeus_kills)          AS total_zeus_kills,
+            COUNT(DISTINCT pr.match_id) AS matches_played
+        FROM player_ratings pr
+        JOIN matches m ON m.id = pr.match_id
+        WHERE m.uploaded_at >= ? AND m.uploaded_at <= ?
+        GROUP BY pr.steamid
+        HAVING matches_played >= ?
+        ORDER BY avg_rating DESC
+    """, (start, end, min_matches)).fetchall()
+
+    all_rows = [dict(r) for r in rows]
+    return {
+        "players":       all_rows,
+        "guests":        [],
+        "season":        season,
+        "total_matches": total_matches,
+        "min_matches":   min_matches,
+    }
+
+
+def get_all_titles(conn: sqlite3.Connection) -> dict:
+    rows = conn.execute("""
+        SELECT pt.*, s.name AS season_name
+        FROM player_titles pt
+        JOIN seasons s ON s.id = pt.season_id
+        ORDER BY pt.earned_at DESC
+    """).fetchall()
+
+    result: dict[str, list] = {}
+    for row in rows:
+        d = dict(row)
+        sid = d["steamid"]
+        if sid not in result:
+            result[sid] = []
+        result[sid].append(d)
+    return result
+
+
+def get_season_titles(conn: sqlite3.Connection, season_id: int) -> list[dict]:
+    rows = conn.execute("""
+        SELECT
+            pt.*,
+            s.name AS season_name,
+            (SELECT MAX(pr2.name) FROM player_ratings pr2 WHERE pr2.steamid = pt.steamid) AS player_name
+        FROM player_titles pt
+        JOIN seasons s ON s.id = pt.season_id
+        WHERE pt.season_id = ?
+        ORDER BY pt.id ASC
+    """, (season_id,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def insert_player_titles(conn: sqlite3.Connection, titles: list[dict]) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    conn.executemany(
+        """INSERT INTO player_titles
+           (season_id, steamid, award_type, award_label, flavor_text, stat_value, earned_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        [
+            (t["season_id"], t["steamid"], t["award_type"], t["award_label"],
+             t.get("flavor_text"), t.get("stat_value"), now)
+            for t in titles
+        ],
+    )
+    conn.commit()

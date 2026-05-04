@@ -1,10 +1,12 @@
 import asyncio
 import hashlib
+import hmac
 import math
 import os
 import secrets
 import sqlite3
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
@@ -14,22 +16,33 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import database
+from awards import generate_season_awards
 from parser import parse_demo
 from heatmap_match import generate_match_heatmap
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
-_admin_tokens: set[str] = set()
+
+
+def _make_admin_token() -> str:
+    """Deterministic token derived from the admin password — survives server restarts."""
+    return hmac.new(ADMIN_PASSWORD.encode(), b"mix-parser-admin-v1", hashlib.sha256).hexdigest()
 
 
 class LoginRequest(BaseModel):
     password: str
 
 
+class CreateSeasonRequest(BaseModel):
+    name: str
+    start_date: str
+    end_date: str | None = None
+
+
 def require_admin(authorization: str | None = Header(default=None)):
     token = None
     if authorization and authorization.startswith("Bearer "):
         token = authorization[7:]
-    if not token or token not in _admin_tokens:
+    if not token or not hmac.compare_digest(token, _make_admin_token()):
         raise HTTPException(401, "Admin authentication required")
 
 
@@ -94,15 +107,11 @@ async def health():
 async def admin_login(body: LoginRequest):
     if not secrets.compare_digest(body.password, ADMIN_PASSWORD):
         raise HTTPException(403, "Invalid password")
-    token = secrets.token_hex(32)
-    _admin_tokens.add(token)
-    return {"token": token}
+    return {"token": _make_admin_token()}
 
 
 @app.post("/admin/logout")
-async def admin_logout(authorization: str | None = Header(default=None)):
-    if authorization and authorization.startswith("Bearer "):
-        _admin_tokens.discard(authorization[7:])
+async def admin_logout():
     return {"ok": True}
 
 
@@ -202,3 +211,109 @@ async def player_profile(steamid: str, conn: sqlite3.Connection = Depends(get_db
     if row is None:
         raise HTTPException(404, "Player not found")
     return JSONResponse(row)
+
+
+# ── Seasons ───────────────────────────────────────────────────────────────────
+
+@app.get("/seasons")
+async def list_seasons(conn: sqlite3.Connection = Depends(get_db)):
+    return JSONResponse(database.get_all_seasons(conn))
+
+
+@app.get("/seasons/{season_id}/leaderboard")
+async def season_leaderboard(season_id: int, conn: sqlite3.Connection = Depends(get_db)):
+    result = database.get_season_leaderboard(conn, season_id)
+    if result is None:
+        raise HTTPException(404, "Season not found")
+    return JSONResponse(_sanitize(result))
+
+
+@app.get("/seasons/{season_id}/summary")
+async def season_summary(season_id: int, conn: sqlite3.Connection = Depends(get_db)):
+    season = database.get_season(conn, season_id)
+    if not season:
+        raise HTTPException(404, "Season not found")
+
+    lb     = database.get_season_leaderboard(conn, season_id)
+    titles = database.get_season_titles(conn, season_id)
+
+    end = season["end_date"] or datetime.now(timezone.utc).isoformat()
+    count_row = conn.execute(
+        "SELECT COUNT(*) AS n FROM matches WHERE uploaded_at >= ? AND uploaded_at <= ?",
+        (season["start_date"], end),
+    ).fetchone()
+
+    all_players = (lb["players"] if lb else []) + (lb["guests"] if lb else [])
+    return JSONResponse(_sanitize({
+        "season":      season,
+        "top_players": all_players[:5],
+        "awards":      titles,
+        "stats": {
+            "total_matches": count_row["n"] if count_row else 0,
+            "total_players": len(all_players),
+        },
+    }))
+
+
+@app.get("/titles")
+async def all_titles(conn: sqlite3.Connection = Depends(get_db)):
+    return JSONResponse(database.get_all_titles(conn))
+
+
+@app.post("/admin/seasons")
+async def create_season(
+    body: CreateSeasonRequest,
+    conn: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    season_id = database.create_season(conn, body.name, body.start_date, body.end_date)
+    return JSONResponse({"id": season_id, "name": body.name})
+
+
+@app.post("/admin/seasons/{season_id}/close")
+async def close_season(
+    season_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    season = database.get_season(conn, season_id)
+    if not season:
+        raise HTTPException(404, "Season not found")
+    if not season["is_active"]:
+        raise HTTPException(400, "Season is already closed")
+
+    end_date = datetime.now(timezone.utc).isoformat()
+    database.close_season(conn, season_id, end_date)
+
+    lb          = database.get_season_leaderboard(conn, season_id)
+    all_players = (lb["players"] if lb else []) + (lb["guests"] if lb else [])
+    awards      = generate_season_awards(all_players, season_id)
+
+    if awards:
+        database.insert_player_titles(conn, awards)
+
+    return JSONResponse({
+        "closed":       True,
+        "season_id":    season_id,
+        "awards_given": len(awards),
+        "awards": [
+            {"type": a["award_type"], "label": a["award_label"], "steamid": a["steamid"]}
+            for a in awards
+        ],
+    })
+
+
+@app.delete("/admin/seasons/{season_id}")
+async def delete_season(
+    season_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    season = database.get_season(conn, season_id)
+    if not season:
+        raise HTTPException(404, "Season not found")
+    if season["is_active"]:
+        raise HTTPException(400, "Cannot delete an active season — close it first")
+
+    database.delete_season(conn, season_id)
+    return JSONResponse({"deleted": season_id})

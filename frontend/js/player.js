@@ -13,6 +13,12 @@ async function renderPlayerProfile(steamid) {
     return;
   }
 
+  // Load titles if not already fetched (e.g. direct URL navigation)
+  if (!Object.keys(_allTitles).length) {
+    _allTitles = await fetch('/titles').then(r => r.json()).catch(() => ({}));
+  }
+  const playerTitles = _allTitles[steamid] || [];
+
   const fav = (data.map_stats || [])[0];
   const kd  = data.total_deaths ? (data.total_kills / data.total_deaths).toFixed(2) : '—';
   const openPct = data.total_opening_attempts
@@ -87,10 +93,17 @@ async function renderPlayerProfile(steamid) {
     </tr>`;
   }).join('');
 
+  const titlesHtml = playerTitles.length
+    ? `<div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.65rem">
+        ${playerTitles.map(t => `<span class="player-title-badge" title="${esc(t.flavor_text || '')}">${esc(t.award_label)}<span class="player-title-season">${esc(t.season_name)}</span></span>`).join('')}
+      </div>`
+    : '';
+
   app.innerHTML = `
     <div class="card">
-      <div class="card-title" style="font-size:.9rem">${esc(data.name || steamid)}</div>
-      <div class="stat-row" style="flex-wrap:wrap;gap:.75rem">${statCards}</div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${esc(data.name || steamid)}</div>
+      ${titlesHtml}
+      <div class="stat-row" style="flex-wrap:wrap;gap:.75rem;margin-top:1rem">${statCards}</div>
     </div>
     ${favSection}
     ${mapRows ? `<div class="card">

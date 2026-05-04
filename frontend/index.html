@@ -11,7 +11,12 @@
 
 <header>
   <h1 onclick="navigate('')">mix<span>-parser</span></h1>
-  <button id="back-btn" onclick="navigate('')">← Dashboard</button>
+  <nav class="header-nav">
+    <a class="nav-link" id="nav-leaderboard" onclick="navigate('')">Leaderboard</a>
+    <a class="nav-link" id="nav-seasons"     onclick="navigate('seasons')">Seasons</a>
+  </nav>
+  <div style="flex:1"></div>
+  <button id="back-btn" onclick="history.back()">← Back</button>
   <button id="admin-btn" class="logged-out" onclick="adminBtnClick()">Admin</button>
 </header>
 
@@ -51,6 +56,7 @@
 <script src="/static/js/team-picker.js"></script>
 <script src="/static/js/match-detail.js"></script>
 <script src="/static/js/player.js"></script>
+<script src="/static/js/season-summary.js"></script>
 <script src="/static/js/dashboard.js"></script>
 <script src="/static/js/router.js"></script>
 
