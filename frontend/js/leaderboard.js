@@ -96,7 +96,7 @@ function leaderboardCard(lb) {
         <span><i class="dot r-mid"></i><span class="legend-name">Mid</span> <span class="legend-label">&ge;0.95</span></span>
         <span><i class="dot r-low"></i><span class="legend-name">Low</span> <span class="legend-label">&ge;0.85</span></span>
         <span><i class="dot r-very-low"></i><span class="legend-name">Very Low</span> <span class="legend-label">&lt;0.85</span></span>
-        <span><i class="dot r-extreme-low"></i><span class="legend-name">Extreme</span> <span class="legend-label">&lt;0.45</span></span>
+        <span><i class="dot r-disaster"></i><span class="legend-name">Disaster</span> <span class="legend-label">&lt;0.45</span></span>
       </div>
     </div>
   `;

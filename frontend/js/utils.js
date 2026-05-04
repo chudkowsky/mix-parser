@@ -26,7 +26,7 @@ function rClass(r) {
   if (r >= 0.95) return 'r-mid';        // yellow
   if (r >= 0.85) return 'r-low';        // orange
   if (r >= 0.45) return 'r-very-low';   // red
-  return 'r-extreme-low';              // dark red
+  return 'r-disaster';              // dark red
 }
 
 function mkBadges(mk) {

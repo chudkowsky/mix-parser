@@ -442,7 +442,7 @@ header h1 span { color: var(--text-dim); font-weight: 400; }
 .r-high       { color: #7dff8a; font-weight: 700; }
 .r-very-high  { color: #007539; font-weight: 700; }
 .r-elite      { color: #6cc8ff; font-weight: 800; text-shadow: 0 0 6px rgba(108,200,255,.25); }
-.r-extreme-low {
+.r-disaster {
   color: #4a1111;
   font-weight: 800;
   text-shadow: 0 0 2px rgba(0,0,0,.9);
@@ -863,4 +863,4 @@ tr:hover td { background: #1f2130; }
 .rating-legend .dot.r-mid        { background: #ffbf00; }
 .rating-legend .dot.r-low        { background: #ff7a1a; }
 .rating-legend .dot.r-very-low   { background: #ff4d4d; }
-.rating-legend .dot.r-extreme-low{ background: #4a1111; box-shadow: inset 0 0 6px rgba(0,0,0,0.6); }
+.rating-legend .dot.r-disaster{ background: #4a1111; box-shadow: inset 0 0 6px rgba(0,0,0,0.6); }
