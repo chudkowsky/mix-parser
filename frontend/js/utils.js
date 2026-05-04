@@ -20,7 +20,13 @@ function fmtRating(r) {
 
 function rClass(r) {
   if (r == null) return '';
-  return r >= 1.15 ? 'r-high' : r >= 0.85 ? 'r-mid' : 'r-low';
+  if (r >= 1.70) return 'r-elite';
+  if (r >= 1.20) return 'r-very-high'; // green
+  if (r >= 1.05) return 'r-high';       // light green
+  if (r >= 0.95) return 'r-mid';        // yellow
+  if (r >= 0.85) return 'r-low';        // orange
+  if (r >= 0.45) return 'r-very-low';   // red
+  return 'r-extreme-low';              // dark red
 }
 
 function mkBadges(mk) {

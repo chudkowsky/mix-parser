@@ -86,6 +86,20 @@ function leaderboardCard(lb) {
     ? `<span style="font-size:.72rem;font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:.75rem">min. ${lb.min_matches} match${lb.min_matches !== 1 ? 'es' : ''} (${lb.total_matches} in season)</span>`
     : '';
 
+  const header = `
+    <div class="grid-header">
+      <div class="section-title">Leaderboard${seasonThresholdNote}</div>
+      <div class="rating-legend">
+        <span><i class="dot r-elite"></i><span class="legend-name">Elite</span> <span class="legend-label">&ge;1.70</span></span>
+        <span><i class="dot r-very-high"></i><span class="legend-name">Very High</span> <span class="legend-label">&ge;1.20</span></span>
+        <span><i class="dot r-high"></i><span class="legend-name">High</span> <span class="legend-label">&ge;1.05</span></span>
+        <span><i class="dot r-mid"></i><span class="legend-name">Mid</span> <span class="legend-label">&ge;0.95</span></span>
+        <span><i class="dot r-low"></i><span class="legend-name">Low</span> <span class="legend-label">&ge;0.85</span></span>
+        <span><i class="dot r-very-low"></i><span class="legend-name">Very Low</span> <span class="legend-label">&lt;0.85</span></span>
+        <span><i class="dot r-extreme-low"></i><span class="legend-name">Extreme</span> <span class="legend-label">&lt;0.45</span></span>
+      </div>
+    </div>
+  `;
   if (!players.length && !guests.length) {
     return `<div class="card" id="leaderboard-card">
       ${seasonTabs()}
@@ -182,7 +196,7 @@ function leaderboardCard(lb) {
 
   return `<div class="card" id="leaderboard-card">
     ${seasonTabs()}
-    <div class="card-title">Leaderboard${seasonThresholdNote}</div>
+    ${header}
     ${playersTable}
     ${guestsSection}
   </div>`;

@@ -330,7 +330,11 @@ header h1 span { color: var(--text-dim); font-weight: 400; }
 .lb-table th.sort-active { color: #fff; }
 .lb-sort-arrow { margin-left: 0.3em; opacity: 0.7; }
 .stat-sub { color: var(--muted); font-size: 0.75em; }
-.lb-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1e2030; }
+.lb-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #1e2030;
+  text-shadow: 0 0 1px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.35);
+}
 .lb-table tr:last-child td { border-bottom: none; }
 .lb-table tr:hover td { background: #1f2130; }
 .lb-table .rank { color: var(--muted); font-weight: 700; width: 2rem; }
@@ -432,9 +436,17 @@ header h1 span { color: var(--text-dim); font-weight: 400; }
 .delete-btn:hover { color: var(--red); background: #2a1818; }
 
 /* ── Rating colours ── */
-.r-high { color: var(--green); font-weight: 700; }
-.r-mid  { color: var(--accent); font-weight: 700; }
-.r-low  { color: var(--red);   font-weight: 700; }
+.r-very-low   { color: #ff4d4d; font-weight: 700; }
+.r-low        { color: #ff7a1a; font-weight: 700; }
+.r-mid        { color: #ffbf00; font-weight: 700; }
+.r-high       { color: #7dff8a; font-weight: 700; }
+.r-very-high  { color: #007539; font-weight: 700; }
+.r-elite      { color: #6cc8ff; font-weight: 800; text-shadow: 0 0 6px rgba(108,200,255,.25); }
+.r-extreme-low {
+  color: #4a1111;
+  font-weight: 800;
+  text-shadow: 0 0 2px rgba(0,0,0,.9);
+}
 
 /* ── Match detail ── */
 .rating-board {
@@ -824,3 +836,31 @@ tr:hover td { background: #1f2130; }
 .admin-season-btn.danger { border-color: #5a2020; color: var(--red); }
 .admin-season-btn.danger:hover { border-color: var(--red); }
 .admin-season-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.rating-legend {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.rating-legend span { display: inline-flex; gap: 0.4rem; align-items: center; }
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.45);
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.25);
+}
+
+/* dot background colors - match rating palette */
+.rating-legend .dot.r-elite      { background: #6cc8ff; box-shadow: 0 0 6px rgba(108,200,255,0.12); }
+.rating-legend .dot.r-very-high  { background: #00e676; }
+.rating-legend .dot.r-high       { background: #7dff8a; }
+.rating-legend .dot.r-mid        { background: #ffbf00; }
+.rating-legend .dot.r-low        { background: #ff7a1a; }
+.rating-legend .dot.r-very-low   { background: #ff4d4d; }
+.rating-legend .dot.r-extreme-low{ background: #4a1111; box-shadow: inset 0 0 6px rgba(0,0,0,0.6); }
