@@ -1,7 +1,7 @@
 // ── Seasons list ──────────────────────────────────────────────────────────────
 
 async function renderSeasonsList() {
-  app.innerHTML = '<div class="loading">Loading seasons…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie sezonów…</div>';
 
   let seasons;
   try {
@@ -12,7 +12,7 @@ async function renderSeasonsList() {
   }
 
   if (!seasons.length) {
-    app.innerHTML = `<div class="card"><div class="card-title">Seasons</div><p class="empty-state">No seasons yet.</p></div>`;
+    app.innerHTML = `<div class="card"><div class="card-title">Sezony</div><p class="empty-state">Brak sezonów.</p></div>`;
     return;
   }
 
@@ -33,7 +33,7 @@ async function renderSeasonsList() {
 
   app.innerHTML = `
     <div class="card">
-      <div class="card-title">Seasons</div>
+      <div class="card-title">Sezony</div>
       <div class="card-body"><div class="seasons-list">${cards}</div></div>
     </div>`;
 }
@@ -41,12 +41,12 @@ async function renderSeasonsList() {
 // ── Season Summary ─────────────────────────────────────────────────────────────
 
 async function renderSeasonSummary(seasonId) {
-  app.innerHTML = '<div class="loading">Loading season…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie sezonu…</div>';
 
   let data;
   try {
     const res = await fetch(`/seasons/${seasonId}/summary`);
-    if (!res.ok) { app.innerHTML = '<div class="error">Season not found.</div>'; return; }
+    if (!res.ok) { app.innerHTML = '<div class="error">Sezon nie znaleziony.</div>'; return; }
     data = await res.json();
   } catch (e) {
     app.innerHTML = `<div class="error">${e.message}</div>`;
@@ -55,9 +55,9 @@ async function renderSeasonSummary(seasonId) {
 
   const { season, top_players = [], awards = [], stats } = data;
   const startDate = fmtDate(season.start_date);
-  const endDate   = season.end_date ? fmtDate(season.end_date) : 'Ongoing';
+  const endDate   = season.end_date ? fmtDate(season.end_date) : 'Trwa';
   const statusTag = season.is_active
-    ? `<span class="seasons-list-live" style="margin-left:.6rem">LIVE</span>`
+    ? `<span class="seasons-list-live" style="margin-left:.6rem">NA ŻYWO</span>`
     : '';
 
   const awardCards = awards.map(a => `
@@ -90,11 +90,11 @@ async function renderSeasonSummary(seasonId) {
         <div class="season-hero-stats" style="font-size:inherit">
           <div style="text-align:right">
             <div class="season-hero-stat-num">${stats.total_matches}</div>
-            <div class="season-hero-stat-lbl">Matches</div>
+            <div class="season-hero-stat-lbl">Mecze</div>
           </div>
           <div style="text-align:right">
             <div class="season-hero-stat-num">${stats.total_players}</div>
-            <div class="season-hero-stat-lbl">Players</div>
+            <div class="season-hero-stat-lbl">Gracze</div>
           </div>
         </div>
       </div>
@@ -105,19 +105,19 @@ async function renderSeasonSummary(seasonId) {
 
     ${awards.length ? `
     <div class="card">
-      <div class="card-title">Hall of Fame</div>
+      <div class="card-title">Galeria Sławy</div>
       <div class="card-body"><div class="awards-grid">${awardCards}</div></div>
-    </div>` : (season.is_active ? '' : '<div class="card"><p class="empty-state">No awards for this season.</p></div>')}
+    </div>` : (season.is_active ? '' : '<div class="card"><p class="empty-state">Brak nagród dla tego sezonu.</p></div>')}
 
     ${top_players.length ? `
     <div class="card">
-      <div class="card-title">Top Players</div>
+      <div class="card-title">Najlepsi gracze</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th></th><th>Player</th><th>Rating</th><th>ADR</th><th>KAST</th><th>K/D</th><th>Maps</th></tr></thead>
+          <thead><tr><th></th><th>Gracz</th><th>Ocena</th><th>ADR</th><th>KAST</th><th>K/D</th><th>Mapy</th></tr></thead>
           <tbody>${topRows}</tbody>
         </table>
       </div>
-    </div>` : '<div class="card"><p class="empty-state">No matches in this season yet.</p></div>'}
+    </div>` : '<div class="card"><p class="empty-state">Brak meczów w tym sezonie.</p></div>'}
   `;
 }

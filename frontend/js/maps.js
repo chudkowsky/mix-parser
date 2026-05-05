@@ -1,12 +1,12 @@
 // ── Maps page ─────────────────────────────────────────────────────────────────
 
 async function renderMapsPage() {
-  app.innerHTML = '<div class="loading">Loading…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie…</div>';
   let maps = [];
   try {
     maps = await fetch('/maps').then(r => r.json());
   } catch (e) {
-    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    app.innerHTML = `<div class="error">Nie można połączyć z serwerem: ${e.message}</div>`;
     return;
   }
 
@@ -16,7 +16,7 @@ async function renderMapsPage() {
 
     const kingHtml = m.king
       ? `<div class="map-stat-row">
-           <span class="map-stat-label">King</span>
+           <span class="map-stat-label">Król</span>
            <span class="map-stat-value map-king" onclick="event.stopPropagation(); navigate('player/${m.king.steamid}')"
              title="${esc(m.king.name)}">${esc(m.king.name)}</span>
            <span class="map-stat-aside">${fmtRating(m.king.avg_rating)}</span>
@@ -25,7 +25,7 @@ async function renderMapsPage() {
 
     const mostHtml = m.most_played
       ? `<div class="map-stat-row">
-           <span class="map-stat-label">Most played</span>
+           <span class="map-stat-label">Najczęściej grane przez: </span>
            <span class="map-stat-value" onclick="event.stopPropagation(); navigate('player/${m.most_played.steamid}')"
              style="cursor:pointer;color:var(--accent)" title="${esc(m.most_played.name)}">${esc(m.most_played.name)}</span>
            <span class="map-stat-aside">${m.most_played.matches_on_map}×</span>
@@ -40,11 +40,11 @@ async function renderMapsPage() {
       <div class="map-card-body">
         <div class="map-card-name">${esc(m.map_name)}</div>
         <div class="map-stat-row">
-          <span class="map-stat-label">Games</span>
+          <span class="map-stat-label">Gry</span>
           <span class="map-stat-value">${m.games_played}</span>
         </div>
         <div class="map-stat-row">
-          <span class="map-stat-label">Rounds</span>
+          <span class="map-stat-label">Rundy</span>
           <span class="map-stat-value">${m.total_rounds ?? '—'}</span>
         </div>
         ${kingHtml}
@@ -63,11 +63,11 @@ async function renderMapsPage() {
 
   app.innerHTML = `
     <div class="card" style="margin-bottom:16px">
-      <div class="card-title">Maps Played</div>
+      <div class="card-title">Rozegrane mapy</div>
       <div class="chart-wrap"><canvas id="chartMaps" height="220"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">Maps</div>
+      <div class="card-title">Mapy</div>
       <div class="card-body">
         <div class="maps-grid">${cards}</div>
       </div>
@@ -97,7 +97,7 @@ async function renderMapsPage() {
           titleColor: '#F5C542', bodyColor: '#dde3f0',
           callbacks: { label: ctx => {
             const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            return ` ${ctx.parsed} game${ctx.parsed > 1 ? 's' : ''} (${Math.round(ctx.parsed / total * 100)}%)`;
+            return ` ${ctx.parsed} ${gamesWord(ctx.parsed)} (${Math.round(ctx.parsed / total * 100)}%)`;
           }},
         },
       },
@@ -105,13 +105,31 @@ async function renderMapsPage() {
   });
 }
 
+function gamesWord(n) {
+  const count = Number(n) || 0;
+  if (count === 1) return 'gra';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return 'gry';
+  return 'gier';
+}
+
+function meczWord(n) {
+  const count = Number(n) || 0;
+  if (count === 1) return 'mecz';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return 'mecze';
+  return 'meczów';
+}
+
 async function renderMapDetail(mapName) {
-  app.innerHTML = '<div class="loading">Loading…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie…</div>';
   let matches = [];
   try {
     matches = await fetch('/matches').then(r => r.json());
   } catch (e) {
-    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    app.innerHTML = `<div class="error">Nie można połączyć z serwerem: ${e.message}</div>`;
     return;
   }
 
@@ -124,11 +142,11 @@ async function renderMapDetail(mapName) {
     style="width:100%;height:140px;object-fit:cover;display:block;opacity:0.7">`;
 
   const header = `<div class="grid-header">
-    <span class="section-title">${esc(mapName)} <span style="font-weight:400;opacity:0.5">${filtered.length} game${filtered.length !== 1 ? 's' : ''}</span></span>
+    <span class="section-title">${esc(mapName)} <span style="font-weight:400;opacity:0.5">${filtered.length} ${gamesWord(filtered.length)}</span></span>
   </div>`;
 
   if (!filtered.length) {
-    app.innerHTML = `<div class="card">${img}<div class="card-body">${header}<p class="empty-state">No matches on this map yet.</p></div></div>`;
+    app.innerHTML = `<div class="card">${img}<div class="card-body">${header}<p class="empty-state">Brak meczów na tej mapie.</p></div></div>`;
     return;
   }
 
@@ -143,7 +161,7 @@ async function renderMapDetail(mapName) {
     <div class="matches-day-group">
       <div class="matches-day-label">
         <span class="matches-day-name">${esc(dayLabel(key))}</span>
-        <span class="matches-day-count">${items.length} match${items.length !== 1 ? 'es' : ''}</span>
+        <span class="matches-day-count">${items.length} ${meczWord(items.length)}</span>
       </div>
       <div class="matches-grid">${items.map(matchTile).join('')}</div>
     </div>`

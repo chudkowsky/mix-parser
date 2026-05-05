@@ -9,8 +9,8 @@ function matchTile(m) {
   return `<div class="match-tile" onclick="navigate('match/${m.id}')">
     ${mapImg}
     <div class="tile-top">
-      <span class="map-name">${esc(m.map_name || 'Unknown Map')}</span>
-      ${isAdmin() ? `<button class="delete-btn" title="Remove match" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>` : ''}
+      <span class="map-name">${esc(m.map_name || 'Nieznana mapa')}</span>
+      ${isAdmin() ? `<button class="delete-btn" title="Usuń mecz" onclick="event.stopPropagation(); deleteMatch(${m.id}, this)">✕</button>` : ''}
     </div>
     <div class="tile-sides">
       ${m.ct_score != null && m.t_score != null
@@ -20,10 +20,10 @@ function matchTile(m) {
                     <span class="side-sep">:</span>
                     <span class="${b >= a ? 'score-win' : 'score-lose'}" style="font-size:1rem">${b}</span>`;
           })()
-        : `<span style="color:var(--muted);font-size:.8rem">${m.total_rounds ?? '?'} rounds</span>`
+        : `<span style="color:var(--muted);font-size:.8rem">${m.total_rounds ?? '?'} ${rundaWord(m.total_rounds)}</span>`
       }
     </div>
-    <div class="tile-rounds">${m.total_rounds != null ? `${m.total_rounds} rounds` : ''}${m.uploaded_by ? `${m.total_rounds != null ? ' · ' : ''}<span style="color:var(--text-dim)">by ${esc(m.uploaded_by)}</span>` : ''}</div>
+    <div class="tile-rounds">${m.total_rounds != null ? `${m.total_rounds} ${rundaWord(m.total_rounds)}` : ''}</div>
     ${m.top_player_name ? `<div class="tile-mvp">
       <span class="mvp-label">MVP</span>
       <span class="mvp-name" title="${esc(m.top_player_name)}">${esc(m.top_player_name)}</span>
@@ -35,20 +35,37 @@ function matchTile(m) {
 function dayLabel(dateKey) {
   const today     = new Date().toLocaleDateString('sv');
   const yesterday = new Date(Date.now() - 864e5).toLocaleDateString('sv');
-  if (dateKey === today)     return 'Today';
-  if (dateKey === yesterday) return 'Yesterday';
-  return new Date(dateKey).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (dateKey === today)     return 'Dzisiaj';
+  if (dateKey === yesterday) return 'Wczoraj';
+  return new Date(dateKey).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function meczWord(n) {
+  const count = Number(n) || 0;
+  if (count === 1) return 'mecz';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return 'mecze';
+  return 'meczów';
+}
+
+function rundaWord(n) {
+  const count = Number(n) || 0;
+  if (count === 1) return 'runda';
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return 'rundy';
+  return 'rund';
+}
 function renderMatchesPage() {
   const matches = window._matchesAll || [];
 
   const header = `<div class="grid-header">
-    <span class="section-title">Matches (${matches.length})</span>
+    <span class="section-title">Mecze (${matches.length})</span>
   </div>`;
 
   if (!matches.length) {
-    return `<div id="matches-section">${header}<p class="empty-state">No matches yet. Upload a demo above.</p></div>`;
+    return `<div id="matches-section">${header}<p class="empty-state">Brak meczów. Wgraj demo powyżej.</p></div>`;
   }
 
   // Group by local calendar date, preserving insertion order (matches are newest-first)
@@ -66,7 +83,7 @@ function renderMatchesPage() {
     <div class="matches-day-group">
       <div class="matches-day-label">
         <span class="matches-day-name">${esc(dayLabel(g.key))}</span>
-        <span class="matches-day-count">${g.items.length} match${g.items.length !== 1 ? 'es' : ''}</span>
+        <span class="matches-day-count">${g.items.length} ${meczWord(g.items.length)}</span>
       </div>
       <div class="matches-grid">${g.items.map(matchTile).join('')}</div>
     </div>`
@@ -76,11 +93,11 @@ function renderMatchesPage() {
 }
 
 async function loadMatchesPage() {
-  app.innerHTML = '<div class="loading">Loading…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie…</div>';
   try {
     window._matchesAll = await fetch('/matches').then(r => r.json());
   } catch (e) {
-    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    app.innerHTML = `<div class="error">Nie można połączyć z serwerem: ${e.message}</div>`;
     return;
   }
   app.innerHTML = `<div class="card"><div class="card-body">${renderMatchesPage()}</div></div>`;

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>mix-parser — CS2 Demo Analyzer</title>
+  <title>mix-parser — Analizator CS2</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800;900&family=Barlow+Condensed:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -18,26 +18,26 @@
   </div>
   <div class="header-divider"></div>
   <nav class="header-nav">
-    <a class="nav-link" id="nav-leaderboard" onclick="navigate('')">Leaderboard</a>
-    <a class="nav-link" id="nav-matches"     onclick="navigate('matches')">Matches</a>
-    <a class="nav-link" id="nav-players"     onclick="navigate('players')">Players</a>
-    <a class="nav-link" id="nav-maps"        onclick="navigate('maps')">Maps</a>
-    <a class="nav-link" id="nav-seasons"     onclick="navigate('seasons')">Seasons</a>
-    <a class="nav-link" id="nav-team-picker" onclick="navigate('team-picker')">Pick Teams</a>
+    <a class="nav-link" id="nav-leaderboard" onclick="navigate('')">Ranking</a>
+    <a class="nav-link" id="nav-matches"     onclick="navigate('matches')">Mecze</a>
+    <a class="nav-link" id="nav-players"     onclick="navigate('players')">Gracze</a>
+    <a class="nav-link" id="nav-maps"        onclick="navigate('maps')">Mapy</a>
+    <a class="nav-link" id="nav-seasons"     onclick="navigate('seasons')">Sezony</a>
+    <a class="nav-link" id="nav-team-picker" onclick="navigate('team-picker')">Wylosuj Składy</a>
   </nav>
-  <button id="back-btn" onclick="history.back()">← Back</button>
+  <button id="back-btn" onclick="history.back()">← Wróć</button>
   <button id="admin-btn" class="logged-out" onclick="adminBtnClick()">Admin</button>
 </header>
 
 <!-- Name modal -->
 <div class="modal-overlay" id="name-modal">
   <div class="modal">
-    <h2>What's your name?</h2>
-    <input type="text" id="user-name-input" placeholder="Enter your name" maxlength="40"
+    <h2>Jak masz na imię?</h2>
+    <input type="text" id="user-name-input" placeholder="Wpisz swoje imię" maxlength="40"
       onkeydown="if(event.key==='Enter') submitName()"
       style="width:100%;padding:.55rem .8rem;background:#111318;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.9rem" />
     <div class="modal-actions">
-      <button class="btn-login" onclick="submitName()">Continue</button>
+      <button class="btn-login" onclick="submitName()">Dalej</button>
     </div>
   </div>
 </div>
@@ -45,12 +45,12 @@
 <!-- Admin login modal -->
 <div class="modal-overlay" id="login-modal" onclick="if(event.target===this) closeLoginModal()">
   <div class="modal">
-    <h2>Admin Login</h2>
-    <input type="password" id="admin-pw" placeholder="Password" onkeydown="if(event.key==='Enter') submitLogin()" />
+    <h2>Panel admina</h2>
+    <input type="password" id="admin-pw" placeholder="Hasło" onkeydown="if(event.key==='Enter') submitLogin()" />
     <div id="login-error"></div>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeLoginModal()">Cancel</button>
-      <button class="btn-login"  onclick="submitLogin()">Login</button>
+      <button class="btn-cancel" onclick="closeLoginModal()">Anuluj</button>
+      <button class="btn-login"  onclick="submitLogin()">Zaloguj</button>
     </div>
   </div>
 </div>

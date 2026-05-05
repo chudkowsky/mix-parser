@@ -15,7 +15,7 @@ let _tpDraftTeamA = [];   // steamids assigned to team A (includes captainA)
 let _tpDraftTeamB = [];   // steamids assigned to team B (includes captainB)
 
 async function renderTeamPicker() {
-  app.innerHTML = '<div class="loading">Loading…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie…</div>';
   try {
     const lb = await fetch('/leaderboard').then(r => r.json());
     _tpAllPlayers = [...(lb.players ?? []), ...(lb.guests ?? [])];
@@ -23,7 +23,7 @@ async function renderTeamPicker() {
     _tpCustomSeq  = 0;
     app.innerHTML = buildTeamPickerHTML();
   } catch (e) {
-    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    app.innerHTML = `<div class="error">Nie można połączyć z serwerem: ${e.message}</div>`;
   }
 }
 
@@ -34,11 +34,11 @@ function buildTeamPickerHTML() {
   const rows = sortedPlayers.map(p => {
     const sel = _tpSelected.has(p.steamid);
     const removeBtn = p._custom
-      ? `<span class="tp-row-remove" onclick="event.stopPropagation();tpRemoveCustom('${p.steamid}')" title="Remove">✕</span>`
+      ? `<span class="tp-row-remove" onclick="event.stopPropagation();tpRemoveCustom('${p.steamid}')" title="Usuń">✕</span>`
       : '';
     const mapsLabel = p._custom
-      ? `<span class="tp-row-maps">new</span>`
-      : `<span class="tp-row-maps">${p.matches_played} maps</span>`;
+      ? `<span class="tp-row-maps">nowy</span>`
+      : `<span class="tp-row-maps">${p.matches_played} map</span>`;
     return `<div class="tp-row${sel ? ' selected' : ''}" onclick="tpToggle('${p.steamid}')">
       <span class="tp-row-check">✓</span>
       ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
@@ -51,28 +51,28 @@ function buildTeamPickerHTML() {
 
   const ready = count === 10;
   return `<div class="card">
-    <div class="card-title">Team Picker</div>
+    <div class="card-title">Wybór drużyn</div>
     <div class="card-body">
-      <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.75rem">Select exactly 10 players to generate balanced teams.</p>
-      <div class="tp-counter">Selected: <span>${count}</span> / 10</div>
+      <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.75rem">Wybierz dokładnie 10 graczy, aby wygenerować zbalansowane drużyny.</p>
+      <div class="tp-counter">Wybrano: <span>${count}</span> / 10</div>
       <div class="tp-player-list">${rows}</div>
 
       <div class="tp-add-guest">
-        <div class="tp-add-title">Player not in the system? <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">Add manually with estimated rating</span></div>
+        <div class="tp-add-title">Gracz nie w systemie? <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">Dodaj ręcznie z szacowaną oceną</span></div>
         <div class="tp-add-row">
-          <input id="tp-guest-name" type="text" placeholder="Name" maxlength="40" />
+          <input id="tp-guest-name" type="text" placeholder="Nazwa" maxlength="40" />
           <div class="tp-slider-wrap">
             <input id="tp-guest-rating" type="range" min="0.4" max="2.0" step="0.01" value="1.00"
               oninput="document.getElementById('tp-guest-rating-val').textContent = parseFloat(this.value).toFixed(2)" />
             <span id="tp-guest-rating-val">1.00</span>
           </div>
-          <button class="tp-add-btn" onclick="tpAddCustom()">Add</button>
+          <button class="tp-add-btn" onclick="tpAddCustom()">Dodaj</button>
         </div>
       </div>
 
       <div class="tp-action-row">
-        <button class="tp-generate-btn" ${ready ? '' : 'disabled'} onclick="tpGenerate()">Generate Teams</button>
-        <button class="tp-captain-btn" ${ready ? '' : 'disabled'} onclick="tpStartCaptainMode()">Captain Draft</button>
+        <button class="tp-generate-btn" ${ready ? '' : 'disabled'} onclick="tpGenerate()">Generuj drużyny</button>
+        <button class="tp-captain-btn" ${ready ? '' : 'disabled'} onclick="tpStartCaptainMode()">Draft kapitański</button>
       </div>
       <div id="tp-result"></div>
     </div>
@@ -195,9 +195,9 @@ function buildTeamsHTML(pool) {
   const avgA = (teamA.reduce((s, p) => s + (p.avg_rating ?? 0), 0) / (teamA.length || 1)).toFixed(4);
   const avgB = (teamB.reduce((s, p) => s + (p.avg_rating ?? 0), 0) / (teamB.length || 1)).toFixed(4);
 
-  const teamRows = (list, targetLabel) => [...list]
+    const teamRows = (list, targetLabel) => [...list]
     .sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0))
-    .map(p => `<div class="tp-team-row tp-team-row-movable" onclick="tpMovePlayer('${p.steamid}')" title="Move to ${targetLabel}">
+    .map(p => `<div class="tp-team-row tp-team-row-movable" onclick="tpMovePlayer('${p.steamid}')" title="Przenieś do ${targetLabel}">
       ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
       <span class="tp-team-row-name">${esc(p.name || p.steamid)}</span>
       <span class="tp-team-row-rating ${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
@@ -206,28 +206,28 @@ function buildTeamsHTML(pool) {
 
   const tabs = _tpProposals.map((s, i) => `
     <button class="tp-tab${i === _tpActiveTab ? ' active' : ''}" onclick="tpSwitchTab(${i})">
-      ${i === 0 ? 'Best' : `#${i + 1}`}
+      ${i === 0 ? 'Najlepszy' : `#${i + 1}`}
       <span class="tp-tab-diff">${s.diff.toFixed(3)}</span>
     </button>`).join('');
 
   const manualBadge = isManual
-    ? `<button class="tp-reset-btn" onclick="tpResetManual()">↺ Reset</button>`
+    ? `<button class="tp-reset-btn" onclick="tpResetManual()">↺ Resetuj</button>`
     : '';
 
   return `<div class="tp-tabs">${tabs}${manualBadge}</div>
   <div class="tp-teams">
     <div class="tp-team tp-team-a">
-      <div class="tp-team-title">Team A</div>
-      ${teamRows(teamA, 'Team B')}
+      <div class="tp-team-title">Drużyna A</div>
+        ${teamRows(teamA, 'Drużyna B')}
       <div class="tp-team-avg">Avg rating: <strong>${avgA}</strong></div>
     </div>
     <div class="tp-team tp-team-b">
-      <div class="tp-team-title">Team B</div>
-      ${teamRows(teamB, 'Team A')}
+        <div class="tp-team-title">Drużyna B</div>
+        ${teamRows(teamB, 'Drużyna A')}
       <div class="tp-team-avg">Avg rating: <strong>${avgB}</strong></div>
     </div>
   </div>
-  <div class="tp-diff">Rating difference: <strong>${diff.toFixed(4)}</strong>${isManual ? ' <span class="tp-manual-tag">adjusted</span>' : ''}</div>`;
+  <div class="tp-diff">Różnica ratingu: <strong>${diff.toFixed(4)}</strong>${isManual ? ' <span class="tp-manual-tag">dostosowane</span>' : ''}</div>`;
 }
 
 // ── Captain draft mode ────────────────────────────────────────────────────────

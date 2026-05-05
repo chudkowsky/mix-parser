@@ -24,7 +24,7 @@ function isAdmin() { return !!getAdminToken(); }
 function updateAdminBtn() {
   const btn = document.getElementById('admin-btn');
   if (isAdmin()) {
-    btn.textContent = 'Logout';
+    btn.textContent = 'Wyloguj';
     btn.className = 'logged-in';
   } else {
     btn.textContent = 'Admin';
@@ -57,14 +57,14 @@ async function submitLogin() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password: pw }),
     });
-    if (!res.ok) { errEl.textContent = 'Invalid password.'; return; }
+    if (!res.ok) { errEl.textContent = 'Nieprawidłowe hasło.'; return; }
     const data = await res.json();
     sessionStorage.setItem('admin_token', data.token);
     closeLoginModal();
     updateAdminBtn();
     router();
   } catch (e) {
-    errEl.textContent = `Error: ${e.message}`;
+    errEl.textContent = `Błąd: ${e.message}`;
   }
 }
 

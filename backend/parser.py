@@ -317,14 +317,13 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
                             clutch_total[last] += 1
                             clutch_candidate[last] = True
 
-        # Determine clutch winners: player survived or their team won the round
+        # Determine clutch winners: player's team won the round
         winner_team = round_winners.get(rnd) if round_winners else None
         for sid, flagged in clutch_candidate.items():
             if not flagged:
                 continue
-            survived = sid not in round_deaths.get(rnd, set())
-            team     = player_side_rounds[sid]["CT"] and "CT" or "TERRORIST"
-            won      = survived or (winner_team and winner_team == player_teams.get(sid))
+            team = "CT" if rnd in player_side_rounds[sid]["CT"] else "TERRORIST"
+            won = (winner_team == team)
             if won:
                 clutch_won[sid] += 1
 

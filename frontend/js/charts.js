@@ -5,14 +5,14 @@ const _charts = {};
 function chartsSection(stats, leaderboard) {
   if (!stats.player_history.length) return '';
   const rangeBtns = [10,20,50,0].map(n =>
-    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:3px 10px;border:1px solid #2e3850;background:transparent;color:#7a8aaa;font-weight:normal;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${n === 0 ? 'All' : 'Last '+n}</button>`
+    `<button onclick="setDashboardRange(${n})" data-range="${n}" style="padding:3px 10px;border:1px solid #2e3850;background:transparent;color:#7a8aaa;font-weight:normal;font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${n === 0 ? 'Wszystkie' : 'Ostatnie '+n}</button>`
   ).join('');
   return `<div class="charts-row">
     <div class="card" style="margin-bottom:0">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <div>
-          <div>Player Rating History</div>
-          <div style="font-size:.75rem;font-weight:normal;color:var(--text-muted);margin-top:2px;font-family:'IBM Plex Mono',monospace">Hover a line or legend to isolate a player</div>
+          <div>Historia Ratingu Graczy</div>
+          <div style="font-size:.75rem;font-weight:normal;color:var(--text-muted);margin-top:2px;font-family:'IBM Plex Mono',monospace">Najedź na linię lub legendę, aby wyizolować gracza</div>
         </div>
         <div id="dashRangeBtns" style="display:flex;gap:4px">${rangeBtns}</div>
       </div>

@@ -44,7 +44,7 @@ function seasonTabs() {
   ).join('');
 
   const summaryLink = showSummaryLink
-    ? `<span class="season-summary-link" onclick="navigate('season/${_currentSeasonId}')">View Summary →</span>`
+    ? `<span class="season-summary-link" onclick="navigate('season/${_currentSeasonId}')">Podsumowanie →</span>`
     : '';
 
   return `<div class="season-tabs">${tabsHtml}${summaryLink}</div>`;
@@ -83,28 +83,28 @@ function leaderboardCard(lb) {
   const { players = [], guests = [] } = lb;
 
   const seasonThresholdNote = _currentSeasonId && lb.min_matches
-    ? `<span style="font-size:.72rem;font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:.75rem">min. ${lb.min_matches} match${lb.min_matches !== 1 ? 'es' : ''} (${lb.total_matches} in season)</span>`
+    ? `<span style="font-size:.72rem;font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:.75rem">min. ${lb.min_matches} mecz${lb.min_matches === 1 ? '' : lb.min_matches < 5 ? 'e' : 'y'} (${lb.total_matches} w sezonie)</span>`
     : '';
 
   const header = `
     <div class="grid-header">
-      <div class="section-title">Leaderboard${seasonThresholdNote}</div>
+      <div class="section-title">Ranking${seasonThresholdNote}</div>
       <div class="rating-legend">
-        <span><i class="dot r-elite"></i><span class="legend-name">Elite</span> <span class="legend-label">&ge;1.70</span></span>
-        <span><i class="dot r-very-high"></i><span class="legend-name">Very High</span> <span class="legend-label">&ge;1.20</span></span>
-        <span><i class="dot r-high"></i><span class="legend-name">High</span> <span class="legend-label">&ge;1.05</span></span>
-        <span><i class="dot r-mid"></i><span class="legend-name">Mid</span> <span class="legend-label">&ge;0.95</span></span>
-        <span><i class="dot r-low"></i><span class="legend-name">Low</span> <span class="legend-label">&ge;0.85</span></span>
-        <span><i class="dot r-very-low"></i><span class="legend-name">Very Low</span> <span class="legend-label">&lt;0.85</span></span>
-        <span><i class="dot r-disaster"></i><span class="legend-name">Disaster</span> <span class="legend-label">&lt;0.45</span></span>
+        <span><i class="dot r-elite"></i><span class="legend-name">Legenda</span> <span class="legend-label">&ge;1.70</span></span>
+        <span><i class="dot r-very-high"></i><span class="legend-name">Kozak</span> <span class="legend-label">&ge;1.20</span></span>
+        <span><i class="dot r-high"></i><span class="legend-name">Niezły</span> <span class="legend-label">&ge;1.05</span></span>
+        <span><i class="dot r-mid"></i><span class="legend-name">Przecietniak</span> <span class="legend-label">&ge;0.95</span></span>
+        <span><i class="dot r-low"></i><span class="legend-name">Cienias</span> <span class="legend-label">&ge;0.85</span></span>
+        <span><i class="dot r-very-low"></i><span class="legend-name">Dramat</span> <span class="legend-label">&lt;0.85</span></span>
+        <span><i class="dot r-disaster"></i><span class="legend-name">Chujoza</span> <span class="legend-label">&lt;0.45</span></span>
       </div>
     </div>
   `;
   if (!players.length && !guests.length) {
     return `<div class="card" id="leaderboard-card">
-      <div class="card-title">Leaderboard${seasonThresholdNote}</div>
+      <div class="card-title">Ranking${seasonThresholdNote}</div>
       ${seasonTabs()}
-      <p class="empty-state" style="padding:2rem 16px">No data yet — upload some demos.</p>
+      <p class="empty-state" style="padding:2rem 16px">Brak danych — wgraj dema.</p>
     </div>`;
   }
 
@@ -145,18 +145,18 @@ function leaderboardCard(lb) {
     `<th class="sortable${_lbSort.key === key ? ' sort-active' : ''}" onclick="lbSort('${key}')">${label}${arrow(key)}</th>`;
 
   const thead = `<thead><tr>
-    <th></th><th>Player</th>
+    <th></th><th>Gracz</th>
     ${th('Rating',   'avg_rating')}
     ${th('ADR',      'avg_adr')}
     ${th('KAST',     'avg_kast')}
     ${th('HS%',      'avg_hs_pct')}
     ${th('K/D',      'kd')}
-    ${th('Opening%', 'opening_pct')}
+    ${th('Wejście%', 'opening_pct')}
     ${th('Clutch',   'clutch')}
-    ${th('Flashes',  'total_flash_enemies')}
+    ${th('Flashe',   'total_flash_enemies')}
     ${th('🔪',       'total_knife_kills')}
     ${th('⚡',       'total_zeus_kills')}
-    ${th('Maps',     'matches_played')}
+    ${th('Mapy',     'matches_played')}
   </tr></thead>`;
 
   const buildRows = (list) => sorted(list).map((p, i) => `<tr>
@@ -183,10 +183,10 @@ function leaderboardCard(lb) {
         ${thead}
         <tbody>${buildRows(players)}</tbody>
       </table>
-    </div>` : `<p class="empty-state">No regulars yet.</p>`;
+    </div>` : `<p class="empty-state">Jeszcze brak stałych graczy.</p>`;
 
   const guestsSection = (!_currentSeasonId && guests.length) ? `
-    <div class="card-title" style="margin-top:0;border-top:1px solid var(--border)">Guests <span style="font-size:0.75rem;font-weight:normal;text-transform:none;letter-spacing:0;opacity:0.6">(fewer than 5 maps)</span></div>
+    <div class="card-title" style="margin-top:0;border-top:1px solid var(--border)">Goście <span style="font-size:0.75rem;font-weight:normal;text-transform:none;letter-spacing:0;opacity:0.6">(mniej niż 5 map)</span></div>
     <div class="table-wrap">
       <table class="lb-table">
         ${thead}
@@ -195,7 +195,7 @@ function leaderboardCard(lb) {
     </div>` : '';
 
   return `<div class="card" id="leaderboard-card">
-    <div class="card-title">Leaderboard${seasonThresholdNote}</div>
+    <div class="card-title">Ranking${seasonThresholdNote}</div>
     ${seasonTabs()}
     <div class="card-body" style="padding-bottom:0">${header}</div>
     ${playersTable}

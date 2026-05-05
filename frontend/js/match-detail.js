@@ -4,12 +4,12 @@ let _ratingsTab     = 'overview';
 let _currentRatings = [];
 
 async function renderMatchDetail(id) {
-  app.innerHTML = '<div class="loading">Loading match…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie meczu…</div>';
 
   let data;
   try {
     const res = await fetch(`/matches/${id}`);
-    if (!res.ok) { app.innerHTML = `<div class="error">Match not found.</div>`; return; }
+    if (!res.ok) { app.innerHTML = `<div class="error">Nie znaleziono meczu.</div>`; return; }
     data = await res.json();
   } catch (e) {
     app.innerHTML = `<div class="error">${e.message}</div>`;
@@ -66,8 +66,8 @@ function detailHeader(m, header) {
     <div class="match-hero-overlay"></div>
     <div class="match-hero-content" style="text-align:center;position:relative">
       ${isAdmin() ? `<button class="download-btn match-hero-admin" style="position:absolute;right:0;top:0;border-color:var(--red);color:var(--red)"
-        onclick="deleteMatch(${m.id}, this, true)">Remove match</button>` : ''}
-      <div class="match-hero-map" style="margin-bottom:0.25rem">${esc(mapName || 'Unknown Map')}</div>
+        onclick="deleteMatch(${m.id}, this, true)">Usuń mecz</button>` : ''}
+      <div class="match-hero-map" style="margin-bottom:0.25rem">${esc(mapName || 'Nieznana mapa')}</div>
       ${score}
     </div>
   </div>`;
@@ -75,19 +75,19 @@ function detailHeader(m, header) {
 
 function detailMeta(m, header, killCount, roundCount, hsRate) {
   const entries = [
-    ['Map',         m.map_name    || header.map_name    || '—'],
-    ['Server',      m.server_name || header.server_name || header.client_name || '—'],
-    ['Patch',       m.patch_version || header.patch_version || '—'],
-    ['Rounds',      roundCount ?? m.total_rounds ?? '—'],
-    ['Kills',       killCount ?? '—'],
-    ['HS Rate',     hsRate != null ? `${hsRate}%` : '—'],
-    ['Uploaded',    fmtDate(m.uploaded_at)],
-    ...(m.uploaded_by ? [['Uploaded by', m.uploaded_by]] : []),
-    ['File',        m.filename || '—'],
+    ['Mapa',         m.map_name    || header.map_name    || '—'],
+    ['Serwer',       m.server_name || header.server_name || header.client_name || '—'],
+    ['Wersja',       m.patch_version || header.patch_version || '—'],
+    ['Rundy',        roundCount ?? m.total_rounds ?? '—'],
+    ['Zabójstwa',    killCount ?? '—'],
+    ['HS %',         hsRate != null ? `${hsRate}%` : '—'],
+    ['Przesłano',    fmtDate(m.uploaded_at)],
+    ...(m.uploaded_by ? [['Dodane przez', m.uploaded_by]] : []),
+    ['Plik',         m.filename || '—'],
   ];
   const rows = entries.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
   return `<div class="card">
-    <div class="card-title">Match Info</div>
+    <div class="card-title">Informacje o meczu</div>
     <div class="card-body"><dl class="kv-grid">${rows}</dl></div>
   </div>`;
 }
@@ -137,21 +137,21 @@ function detailRatings(ratings) {
   const isOverview = _ratingsTab === 'overview';
   const board = isOverview
     ? `<div class="rating-board">
-        <div class="rating-team ct"><h3>Team A</h3>${overviewRows(ct)}</div>
-        <div class="rating-team t"><h3>Team B</h3>${overviewRows(t)}</div>
+      <div class="rating-team ct"><h3>Drużyna A</h3>${overviewRows(ct)}</div>
+      <div class="rating-team t"><h3>Drużyna B</h3>${overviewRows(t)}</div>
        </div>`
     : `<div class="rating-board">
-        <div class="rating-team ct"><h3>Team A</h3>${detailRows(ct)}</div>
-        <div class="rating-team t"><h3>Team B</h3>${detailRows(t)}</div>
+      <div class="rating-team ct"><h3>Drużyna A</h3>${detailRows(ct)}</div>
+      <div class="rating-team t"><h3>Drużyna B</h3>${detailRows(t)}</div>
        </div>
        <p class="formula-note">Rating = 0.0073·KAST + 0.3591·KPR − 0.5329·DPR + 0.2372·Impact + 0.0032·ADR + 0.1587</p>`;
 
   return `<div class="card" id="ratings-card">
     <div class="card-title" style="justify-content:space-between">
-      <span>HLTV 2.0 Rating</span>
+      <span>Ocena HLTV 2.0</span>
       <div class="detail-tabs" style="margin:0">
-        <button class="detail-tab${isOverview ? ' active' : ''}" onclick="switchRatingsTab('overview')">Overview</button>
-        <button class="detail-tab${!isOverview ? ' active' : ''}" onclick="switchRatingsTab('details')">Details</button>
+        <button class="detail-tab${isOverview ? ' active' : ''}" onclick="switchRatingsTab('overview')">Przegląd</button>
+        <button class="detail-tab${!isOverview ? ' active' : ''}" onclick="switchRatingsTab('details')">Szczegóły</button>
       </div>
     </div>
     <div class="card-body">${board}</div>
@@ -191,10 +191,10 @@ function detailOpeningDuels(ratings) {
   }).join('');
   if (!rows) return '';
   const content = `<div class="table-wrap"><table>
-    <thead><tr><th>Player</th><th>Opening Kills</th><th>Duels</th><th>Win%</th></tr></thead>
+    <thead><tr><th>Gracz</th><th>Wejścia</th><th>Pojedynki</th><th>Wygr%</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-  return collapsibleCard('sec-opening', 'Opening Duels', content);
+  return collapsibleCard('sec-opening', 'Wejścia', content);
 }
 
 function detailFlashClutch(ratings) {
@@ -221,11 +221,11 @@ function detailFlashClutch(ratings) {
     </tr>`;
   }).join('');
 
-  const flashCard = flashRows ? collapsibleCard('sec-flash', 'Flash Effectiveness',
-    `<table><thead><tr><th>Player</th><th>Enemies Blinded</th><th>Avg Duration</th></tr></thead><tbody>${flashRows}</tbody></table>`) : '';
+  const flashCard = flashRows ? collapsibleCard('sec-flash', 'Efektywność flashy',
+    `<table><thead><tr><th>Gracz</th><th>Oślepieni</th><th>Śr. czas</th></tr></thead><tbody>${flashRows}</tbody></table>`) : '';
 
-  const clutchCard = clutchRows ? collapsibleCard('sec-clutch', 'Clutch Rounds (1vX)',
-    `<table><thead><tr><th>Player</th><th>Won/Total</th><th>Win%</th></tr></thead><tbody>${clutchRows}</tbody></table>`) : '';
+  const clutchCard = clutchRows ? collapsibleCard('sec-clutch', 'Clutch (1vX)',
+    `<table><thead><tr><th>Gracz</th><th>Wygrane/Razem</th><th>Wygr%</th></tr></thead><tbody>${clutchRows}</tbody></table>`) : '';
 
   return flashCard + clutchCard;
 }
@@ -238,10 +238,10 @@ function detailRounds(rounds) {
     <td>${r.tick ?? '—'}</td>
   </tr>`).join('');
   const content = `<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Winner</th><th>Reason</th><th>Tick</th></tr></thead>
+    <thead><tr><th>#</th><th>Zwycięzca</th><th>Powód</th><th>Tick</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-  return collapsibleCard('sec-rounds', `Rounds (${rounds.length})`, content);
+  return collapsibleCard('sec-rounds', `Rundy (${rounds.length})`, content);
 }
 
 function detailKills(kills) {
@@ -253,12 +253,12 @@ function detailKills(kills) {
     <td>${k.distance != null ? Number(k.distance).toFixed(1) : '—'}</td>
     <td>${k.total_rounds_played ?? '—'}</td>
   </tr>`).join('');
-  const note = kills.length > 300 ? `<p style="color:var(--muted);font-size:.8rem;margin-top:.5rem">Showing first 300 of ${kills.length}</p>` : '';
+  const note = kills.length > 300 ? `<p style="color:var(--muted);font-size:.8rem;margin-top:.5rem">Pokazano pierwsze 300 z ${kills.length}</p>` : '';
   const content = `<div class="table-wrap"><table>
-    <thead><tr><th>Attacker</th><th>Victim</th><th>Weapon</th><th></th><th>Distance</th><th>Round</th></tr></thead>
+    <thead><tr><th>Atakujący</th><th>Ofiara</th><th>Broń</th><th></th><th>Dystans</th><th>Runda</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>${note}`;
-  return collapsibleCard('sec-kills', `Kill Feed (${kills.length})`, content);
+  return collapsibleCard('sec-kills', `Kanał zabójstw (${kills.length})`, content);
 }
 
 function detailBomb(bombEvents) {
@@ -271,12 +271,12 @@ function detailBomb(bombEvents) {
       </table></div>`;
   }).join('');
   if (!sections) return '';
-  return collapsibleCard('sec-bomb', 'Bomb Events', sections);
+  return collapsibleCard('sec-bomb', 'Zdarzenia bomby', sections);
 }
 
 function detailHeatmap(matchId) {
   return `<div class="card" id="heatmap-card">
-    <div class="card-title">Kill Map</div>
+    <div class="card-title">Mapa zabójstw</div>
     <div id="heatmap-frame-wrap" style="
       position:relative;width:100%;height:960px;
       background:#0d0d0d;border-radius:0 0 8px 8px;overflow:hidden
@@ -284,7 +284,7 @@ function detailHeatmap(matchId) {
       <div style="
         display:flex;align-items:center;justify-content:center;
         height:100%;color:var(--muted)
-      ">Loading…</div>
+      ">Ładowanie…</div>
     </div>
   </div>`;
 }
@@ -300,8 +300,8 @@ function loadHeatmapIframe(matchId) {
         justify-content:center;height:100%;gap:.75rem;color:var(--muted)
       ">
         <span style="font-size:2rem">⏳</span>
-        <span>Kill map not generated yet.</span>
-        <span style="font-size:.8rem">Generated automatically after each new upload.</span>
+        <span>Mapa zabójstw jeszcze nie wygenerowana.</span>
+        <span style="font-size:.8rem">Generowana automatycznie po każdym nowym wgraniu.</span>
       </div>`;
       return;
     }
@@ -309,7 +309,7 @@ function loadHeatmapIframe(matchId) {
       <div id="heatmap-loading" style="
         position:absolute;inset:0;display:flex;align-items:center;
         justify-content:center;color:var(--muted);background:#0d0d0d;z-index:1
-      ">Loading kill map…</div>
+      ">Ładowanie mapy zabójstw…</div>
       <iframe
         src="${url}"
         style="width:100%;height:100%;border:none;display:block"
@@ -319,7 +319,7 @@ function loadHeatmapIframe(matchId) {
     wrap.innerHTML = `<div style="
       display:flex;align-items:center;justify-content:center;
       height:100%;color:var(--muted)
-    ">Could not load kill map.</div>`;
+    ">Nie można załadować mapy zabójstw.</div>`;
   });
 }
 
@@ -337,9 +337,9 @@ function detailRaw(data) {
 
   return `<div class="card">
     <div class="card-title" style="display:flex;align-items:center;gap:1rem">
-      Raw JSON
+      Surowe JSON
       <a href="${url}" download="match_${data.id || 'data'}.json" style="text-decoration:none">
-        <button class="download-btn">Download full JSON</button>
+        <button class="download-btn">Pobierz pełny JSON</button>
       </a>
     </div>
     <pre style="background:var(--bg-deep);border:1px solid var(--border);padding:1rem;font-family:'IBM Plex Mono',monospace;font-size:.78rem;overflow:auto;max-height:280px;color:var(--text-sub)">${esc(summary)}</pre>

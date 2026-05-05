@@ -1,12 +1,12 @@
 // ── Players list ──────────────────────────────────────────────────────────────
 
 async function renderPlayersPage() {
-  app.innerHTML = '<div class="loading">Loading…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie…</div>';
   let players = [];
   try {
     players = await fetch('/players').then(r => r.json());
   } catch (e) {
-    app.innerHTML = `<div class="error">Could not reach server: ${e.message}</div>`;
+    app.innerHTML = `<div class="error">Nie można połączyć z serwerem: ${e.message}</div>`;
     return;
   }
 
@@ -22,12 +22,12 @@ async function renderPlayersPage() {
 
   app.innerHTML = `
     <div class="card">
-      <div class="card-title">Players</div>
+      <div class="card-title">Gracze</div>
       <table class="players-table">
           <thead><tr>
-            <th>Name</th>
-            <th>Avg Rating</th>
-            <th>Maps</th>
+            <th>Nazwa</th>
+            <th>Śr. Rating</th>
+            <th>Mapy</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>

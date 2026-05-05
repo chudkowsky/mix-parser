@@ -1,12 +1,12 @@
 // ── Player Profile ────────────────────────────────────────────────────────────
 
 async function renderPlayerProfile(steamid) {
-  app.innerHTML = '<div class="loading">Loading player…</div>';
+  app.innerHTML = '<div class="loading">Ładowanie gracza…</div>';
 
   let data;
   try {
     const res = await fetch(`/players/${encodeURIComponent(steamid)}`);
-    if (!res.ok) { app.innerHTML = `<div class="error">Player not found.</div>`; return; }
+    if (!res.ok) { app.innerHTML = `<div class="error">Nie znaleziono gracza.</div>`; return; }
     data = await res.json();
   } catch (e) {
     app.innerHTML = `<div class="error">${e.message}</div>`;
@@ -32,22 +32,22 @@ async function renderPlayerProfile(steamid) {
     : '—';
 
   const statCards = [
-    ['Rating',       fmtRating(data.avg_rating)],
-    ['ADR',          data.avg_adr ?? '—'],
-    ['KAST',         data.avg_kast != null ? data.avg_kast + '%' : '—'],
-    ['HS%',          data.avg_hs_pct != null ? data.avg_hs_pct + '%' : '—'],
-    ['K/D',          kd],
-    ['Opening%',     openPct],
-    ['Clutch',       clutchPct],
-    ['Avg Flashed',  avgFlash + '/match'],
-    ['🔪 Knife',     data.total_knife_kills || 0],
-    ['⚡ Zeus',      data.total_zeus_kills  || 0],
-    ['Maps played',  data.matches_played ?? 0],
-    ['Total rounds', data.total_rounds ?? 0],
+    ['Rating',          fmtRating(data.avg_rating)],
+    ['ADR',             data.avg_adr ?? '—'],
+    ['KAST',            data.avg_kast != null ? data.avg_kast + '%' : '—'],
+    ['HS%',             data.avg_hs_pct != null ? data.avg_hs_pct + '%' : '—'],
+    ['K/D',             kd],
+    ['Wejście%',        openPct],
+    ['Clutch',          clutchPct],
+    ['Śr. flashe',      avgFlash + '/mecz'],
+    ['🔪 Nóż',         data.total_knife_kills || 0],
+    ['⚡ Zeus',         data.total_zeus_kills  || 0],
+    ['Rozegrane mapy',  data.matches_played ?? 0],
+    ['Łączne rundy',    data.total_rounds ?? 0],
   ].map(([lbl, val]) => `<div class="stat"><div class="num">${val}</div><div class="lbl">${lbl}</div></div>`).join('');
 
   const favSection = fav ? `<div class="card">
-    <div class="card-title">Favourite Map</div>
+    <div class="card-title">Ulubiona mapa</div>
     <div class="card-body" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
       <span style="font-size:1.4rem;font-weight:700;color:var(--accent)">${esc(fav.map_name || '—').replace('de_', '')}</span>
       <div class="stat-row" style="gap:1.5rem;margin:0">
@@ -114,17 +114,17 @@ async function renderPlayerProfile(steamid) {
     </div>
     ${favSection}
     ${mapRows ? `<div class="card">
-      <div class="card-title">Map Breakdown</div>
+      <div class="card-title">Statystyki map</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Map</th><th>Matches</th><th>Rating</th><th>ADR</th><th>KAST</th><th>HS%</th><th>K/D</th><th>Flashes</th></tr></thead>
+        <thead><tr><th>Mapa</th><th>Mecze</th><th>Rating</th><th>ADR</th><th>KAST</th><th>HS%</th><th>K/D</th><th>Flashe</th></tr></thead>
         <tbody>${mapRows}</tbody>
       </table></div>
     </div>` : ''}
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-        <span>Rating Trend</span>
+        <span>Trend ratingu</span>
         <div id="ratingRangeBtns" style="display:flex;gap:4px">
-          ${[10,20,50,0].map((d,i) => `<button onclick="setRatingRange(${d})" data-range="${d}" style="padding:3px 10px;border:1px solid #2e3850;background:${i===0?'#F5C542':'transparent'};color:${i===0?'#000':'#7a8aaa'};font-weight:${i===0?'700':'normal'};font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${d === 0 ? 'All' : 'Last '+d}</button>`).join('')}
+          ${[10,20,50,0].map((d,i) => `<button onclick="setRatingRange(${d})" data-range="${d}" style="padding:3px 10px;border:1px solid #2e3850;background:${i===0?'#F5C542':'transparent'};color:${i===0?'#000':'#7a8aaa'};font-weight:${i===0?'700':'normal'};font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${d === 0 ? 'Wszystko' : 'Ostatnie '+d}</button>`).join('')}
         </div>
       </div>
       <div class="card-body" style="padding-bottom:0">
@@ -133,7 +133,7 @@ async function renderPlayerProfile(steamid) {
           <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid #F5C542"></span>Rating
         </span>
         <span style="display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-sub)">
-          <span style="display:inline-block;width:22px;height:0;border-top:2px dashed #4ADE80"></span>Threshold 1.2
+          <span style="display:inline-block;width:22px;height:0;border-top:2px dashed #4ADE80"></span>Próg 1.2
         </span>
       </div>
       <div style="position:relative">
@@ -147,12 +147,12 @@ async function renderPlayerProfile(steamid) {
       </div>
     </div>
     ${matchRows ? `<div class="card">
-      <div class="card-title">Match History</div>
+      <div class="card-title">Historia meczy</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Date</th><th>Map</th><th>Rating</th><th>CT/T</th><th>K/D</th><th>ADR</th><th>KAST</th><th>HS%</th><th>Flash</th><th>Clutch</th><th>MK</th></tr></thead>
+        <thead><tr><th>Data</th><th>Mapa</th><th>Rating</th><th>CT/T</th><th>K/D</th><th>ADR</th><th>KAST</th><th>HS%</th><th>Flash</th><th>Clutch</th><th>MK</th></tr></thead>
         <tbody>${matchRows}</tbody>
       </table></div>
-    </div>` : '<div class="card"><p class="empty-state" style="padding:2rem">No match history.</p></div>'}
+    </div>` : '<div class="card"><p class="empty-state" style="padding:2rem">Brak historii meczy.</p></div>'}
   `;
 
   const mHistory = data.matches || [];
@@ -167,8 +167,8 @@ async function renderPlayerProfile(steamid) {
       const el = document.getElementById('playerRatingStats');
       if (!el) return;
       el.innerHTML = [
-        ['Current avg', avg.toFixed(2),  '#F5C542'],
-        ['Peak',        peak.toFixed(2), '#dde3f0'],
+        ['Obecna śr.',  avg.toFixed(2),  '#F5C542'],
+        ['Szczyt',      peak.toFixed(2), '#dde3f0'],
         ['vs 1.2',      (diff >= 0 ? '+' : '') + diff.toFixed(2), diff >= 0 ? '#4ADE80' : '#F87171'],
         ['Trend',       (trend >= 0 ? '▲ ' : '▼ ') + Math.abs(trend).toFixed(2), trend >= 0 ? '#4ADE80' : '#F87171'],
       ].map(([lbl, val, col]) => `
@@ -250,7 +250,7 @@ async function renderPlayerProfile(steamid) {
             x: {
               grid: { color: 'rgba(255,255,255,0.04)' },
               ticks: { color: '#3e4e6a', font: { size: 11 } },
-              title: { display: true, text: 'Match #', color: '#3e4e6a', font: { size: 11 } },
+              title: { display: true, text: 'Mecz #', color: '#3e4e6a', font: { size: 11 } },
             },
             y: {
               min: 0.5,
