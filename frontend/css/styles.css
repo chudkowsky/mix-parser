@@ -1,4 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { overflow-x: hidden; }
 
 :root {
   --bg:          #181e2c;
@@ -44,6 +45,7 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -165,7 +167,7 @@ header {
 #admin-btn.logged-in:hover { background: var(--red-dim); }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
-#app { max-width: 1600px; margin: 0 auto; padding: 16px 24px; }
+#app { padding: 16px 32px; width: 100%; }
 
 /* ── Cards / Panels ──────────────────────────────────────────────────────── */
 .card {
@@ -452,7 +454,16 @@ header {
 /* ── Match grid ──────────────────────────────────────────────────────────── */
 .grid-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.75rem; }
 .section-title { font-family: var(--cond); font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text); }
-.matches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.matches-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.matches-day-group { margin-bottom: 1.75rem; }
+.matches-day-group:last-child { margin-bottom: 0; }
+.matches-day-label {
+  display: flex; align-items: baseline; gap: 0.6rem;
+  margin-bottom: 0.65rem; padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+.matches-day-name { font-family: var(--cond); font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text); }
+.matches-day-count { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
 .matches-pagination { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 1rem; flex-wrap: wrap; }
 .pg-btn {
   padding: 3px 12px; border: 1px solid var(--border); background: transparent;
@@ -467,7 +478,7 @@ header {
 
 .match-tile {
   background: var(--panel); border: 1px solid var(--border);
-  padding: 1rem 1.25rem; cursor: pointer;
+  padding: 1.1rem 1.5rem; cursor: pointer;
   transition: border-color 0.2s, transform 0.15s;
   display: flex; flex-direction: column; gap: 0.5rem;
   position: relative; overflow: hidden;
@@ -647,10 +658,10 @@ tr:hover td { background: var(--panel-alt); }
 .stat .lbl { font-family: var(--cond); font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
 /* ── Charts ──────────────────────────────────────────────────────────────── */
-.charts-row { display: grid; grid-template-columns: 1fr 280px; gap: 16px; margin-bottom: 16px; }
+.charts-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; }
 @media (max-width: 720px) { .charts-row { grid-template-columns: 1fr; } }
 .chart-wrap { position: relative; padding: 0 16px 14px; }
-.chart-wrap canvas { display: block; }
+.chart-wrap canvas { display: block; max-width: 100%; }
 
 .loading { font-family: var(--mono); color: var(--text-muted); text-align: center; padding: 4rem; font-size: 0.9rem; }
 .error   { font-family: var(--mono); color: var(--red); text-align: center; padding: 2rem; }
@@ -736,6 +747,40 @@ tr:hover td { background: var(--panel-alt); }
 .seasons-list-card { background: var(--bg-deep); border: 1px solid var(--border); padding: 1rem 1.1rem; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
 .seasons-list-card:hover { border-color: var(--gold); transform: translateY(-2px); }
 .seasons-list-live { font-family: var(--cond); font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; background: var(--green-dim); color: var(--green); border: 1px solid var(--green); padding: 0.05rem 0.35rem; }
+
+/* ── Maps page ───────────────────────────────────────────────────────────── */
+.maps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+.map-card { background: var(--bg-deep); border: 1px solid var(--border); overflow: hidden; transition: border-color 0.15s, transform 0.15s; }
+.map-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.map-card-img-wrap { height: 120px; overflow: hidden; }
+.map-card-img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.85; transition: opacity 0.2s; }
+.map-card:hover .map-card-img { opacity: 1; }
+.map-card-body { padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.map-card-name { font-family: var(--cond); font-size: 1rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text); margin-bottom: 0.3rem; }
+.map-stat-row { display: flex; align-items: baseline; gap: 0.4rem; font-size: 0.8rem; }
+.map-stat-label { font-family: var(--cond); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); width: 6rem; flex-shrink: 0; }
+.map-stat-value { font-family: var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.map-stat-aside { font-family: var(--mono); font-size: 0.75rem; color: var(--text-sub); flex-shrink: 0; }
+.map-king { cursor: pointer; color: var(--gold) !important; font-weight: 600; }
+.map-king:hover { text-decoration: underline; }
+.map-side-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 0.5rem; background: var(--border); }
+.map-side-ct { background: var(--ct); height: 100%; transition: width 0.3s; }
+.map-side-t  { background: var(--t);  height: 100%; transition: width 0.3s; }
+.map-side-labels { display: flex; justify-content: space-between; margin-top: 0.2rem; }
+.map-side-label { font-family: var(--mono); font-size: 0.68rem; }
+.map-side-label.ct { color: var(--ct); }
+.map-side-label.t  { color: var(--t); }
+
+/* ── Players list page ───────────────────────────────────────────────────── */
+.players-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; }
+.players-table thead tr { background: var(--bg-deep); }
+.players-table th { padding: 8px 16px; text-align: left; font-family: var(--cond); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-sub); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.players-table td { padding: 10px 16px; border-bottom: 1px solid var(--border-sub); }
+.players-table tr:last-child td { border-bottom: none; }
+.players-row { cursor: pointer; }
+.players-row:hover td { background: var(--panel-alt); }
+.players-name { font-family: var(--sans); font-weight: 600; color: var(--accent); }
+.players-maps { color: var(--text-sub); }
 
 /* ── Admin season management ─────────────────────────────────────────────── */
 .admin-season-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }

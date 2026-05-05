@@ -31,13 +31,29 @@ async function router() {
     backBtn.style.display = 'block';
     updateNav('seasons');
     await renderSeasonSummary(param);
+  } else if (view === 'matches') {
+    backBtn.style.display = 'none';
+    updateNav('matches');
+    await loadMatchesPage();
+  } else if (view === 'players') {
+    backBtn.style.display = 'none';
+    updateNav('players');
+    await renderPlayersPage();
+  } else if (view === 'maps' && param) {
+    backBtn.style.display = 'block';
+    updateNav('maps');
+    await renderMapDetail(decodeURIComponent(param));
+  } else if (view === 'maps') {
+    backBtn.style.display = 'none';
+    updateNav('maps');
+    await renderMapsPage();
   } else if (view === 'seasons') {
     backBtn.style.display = 'none';
     updateNav('seasons');
     await renderSeasonsList();
   } else if (view === 'team-picker') {
-    backBtn.style.display = 'block';
-    updateNav('');
+    backBtn.style.display = 'none';
+    updateNav('team-picker');
     await renderTeamPicker();
   } else {
     backBtn.style.display = 'none';

@@ -376,6 +376,55 @@ def get_stats(conn: sqlite3.Connection) -> dict:
     }
 
 
+def get_map_stats(conn: sqlite3.Connection) -> list:
+    maps = conn.execute("""
+        SELECT
+            map_name,
+            COUNT(*)          AS games_played,
+            SUM(total_rounds) AS total_rounds,
+            ROUND(AVG(CAST(ct_score AS FLOAT) / NULLIF(total_rounds, 0) * 100), 1) AS ct_round_pct,
+            ROUND(AVG(CAST(t_score  AS FLOAT) / NULLIF(total_rounds, 0) * 100), 1) AS t_round_pct
+        FROM matches
+        WHERE map_name IS NOT NULL
+        GROUP BY map_name
+        ORDER BY games_played DESC
+    """).fetchall()
+
+    result = []
+    for row in maps:
+        map_name = row["map_name"]
+
+        king = conn.execute("""
+            SELECT pr.name, pr.steamid,
+                   ROUND(SUM(pr.rating * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating,
+                   COUNT(DISTINCT pr.match_id) AS matches_on_map
+            FROM player_ratings pr
+            JOIN matches m ON m.id = pr.match_id
+            WHERE m.map_name = ?
+            GROUP BY pr.steamid
+            HAVING COUNT(DISTINCT pr.match_id) >= 2
+            ORDER BY avg_rating DESC
+            LIMIT 1
+        """, (map_name,)).fetchone()
+
+        most_played = conn.execute("""
+            SELECT pr.name, pr.steamid, COUNT(DISTINCT pr.match_id) AS matches_on_map
+            FROM player_ratings pr
+            JOIN matches m ON m.id = pr.match_id
+            WHERE m.map_name = ?
+            GROUP BY pr.steamid
+            ORDER BY matches_on_map DESC
+            LIMIT 1
+        """, (map_name,)).fetchone()
+
+        d = dict(row)
+        d["king"]        = dict(king)        if king        else None
+        d["most_played"] = dict(most_played) if most_played else None
+        result.append(d)
+
+    return result
+
+
 def delete_match(conn: sqlite3.Connection, match_id: int, data_dir: Path) -> bool:
     """Delete match + cascade player_ratings + remove json.gz. Returns False if not found."""
     row = conn.execute("SELECT id FROM matches WHERE id = ?", (match_id,)).fetchone()

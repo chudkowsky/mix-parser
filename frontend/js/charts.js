@@ -17,13 +17,9 @@ function chartsSection(stats, leaderboard) {
         <div id="dashRangeBtns" style="display:flex;gap:4px">${rangeBtns}</div>
       </div>
       <div style="display:flex;gap:16px;align-items:flex-start;padding:14px 16px">
-        <div style="flex:1;min-width:0"><canvas id="chartRating" height="240"></canvas></div>
+        <div style="flex:1;min-width:0;overflow:hidden"><canvas id="chartRating" height="240" style="max-width:100%"></canvas></div>
         <div id="dashLegend" style="display:flex;flex-direction:column;gap:6px;padding-top:4px;min-width:120px"></div>
       </div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="card-title">Maps Played</div>
-      <div class="chart-wrap"><canvas id="chartMaps" height="220"></canvas></div>
     </div>
   </div>`;
 }
@@ -191,47 +187,4 @@ function renderCharts(stats, leaderboard) {
   window.setDashboardRange = (n) => buildRatingChart(n);
   buildRatingChart(10);
 
-  // ── Map distribution donut ────────────────────────────────────────────────
-  const mapNames  = Object.keys(stats.map_distribution);
-  const mapCounts = Object.values(stats.map_distribution);
-  const mapColors = mapNames.map((_, i) => PALETTE[i % PALETTE.length]);
-
-  if (_charts.maps) _charts.maps.destroy();
-  const ctxM = document.getElementById('chartMaps');
-  if (!ctxM) return;
-  _charts.maps = new Chart(ctxM, {
-    type: 'doughnut',
-    data: {
-      labels: mapNames.map(n => n.replace('de_', '')),
-      datasets: [{
-        data: mapCounts,
-        backgroundColor: mapColors,
-        borderColor: '#181e2c',
-        borderWidth: 3,
-        hoverOffset: 6,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '62%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#7a8aaa', font: { size: 11 }, boxWidth: 12, padding: 10 },
-        },
-        tooltip: {
-          backgroundColor: '#131824', borderColor: '#2e3850', borderWidth: 1,
-          titleColor: '#F5C542', bodyColor: '#dde3f0',
-          callbacks: {
-            label: ctx => {
-              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-              const pct = Math.round(ctx.parsed / total * 100);
-              return ` ${ctx.parsed} match${ctx.parsed > 1 ? 'es' : ''} (${pct}%)`;
-            },
-          },
-        },
-      },
-    },
-  });
 }

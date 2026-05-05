@@ -51,28 +51,30 @@ function buildTeamPickerHTML() {
   const ready = count === 10;
   return `<div class="card">
     <div class="card-title">Team Picker</div>
-    <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.75rem">Select exactly 10 players to generate balanced teams.</p>
-    <div class="tp-counter">Selected: <span>${count}</span> / 10</div>
-    <div class="tp-player-list">${rows}</div>
+    <div class="card-body">
+      <p style="font-size:0.82rem;color:var(--muted);margin:0 0 0.75rem">Select exactly 10 players to generate balanced teams.</p>
+      <div class="tp-counter">Selected: <span>${count}</span> / 10</div>
+      <div class="tp-player-list">${rows}</div>
 
-    <div class="tp-add-guest">
-      <div class="tp-add-title">Player not in the system? <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">Add manually with estimated rating</span></div>
-      <div class="tp-add-row">
-        <input id="tp-guest-name" type="text" placeholder="Name" maxlength="40" />
-        <div class="tp-slider-wrap">
-          <input id="tp-guest-rating" type="range" min="0.4" max="2.0" step="0.01" value="1.00"
-            oninput="document.getElementById('tp-guest-rating-val').textContent = parseFloat(this.value).toFixed(2)" />
-          <span id="tp-guest-rating-val">1.00</span>
+      <div class="tp-add-guest">
+        <div class="tp-add-title">Player not in the system? <span style="font-weight:400;text-transform:none;letter-spacing:0;opacity:0.6">Add manually with estimated rating</span></div>
+        <div class="tp-add-row">
+          <input id="tp-guest-name" type="text" placeholder="Name" maxlength="40" />
+          <div class="tp-slider-wrap">
+            <input id="tp-guest-rating" type="range" min="0.4" max="2.0" step="0.01" value="1.00"
+              oninput="document.getElementById('tp-guest-rating-val').textContent = parseFloat(this.value).toFixed(2)" />
+            <span id="tp-guest-rating-val">1.00</span>
+          </div>
+          <button class="tp-add-btn" onclick="tpAddCustom()">Add</button>
         </div>
-        <button class="tp-add-btn" onclick="tpAddCustom()">Add</button>
       </div>
-    </div>
 
-    <div class="tp-action-row">
-      <button class="tp-generate-btn" ${ready ? '' : 'disabled'} onclick="tpGenerate()">Generate Teams</button>
-      <button class="tp-captain-btn" ${ready ? '' : 'disabled'} onclick="tpStartCaptainMode()">Captain Draft</button>
+      <div class="tp-action-row">
+        <button class="tp-generate-btn" ${ready ? '' : 'disabled'} onclick="tpGenerate()">Generate Teams</button>
+        <button class="tp-captain-btn" ${ready ? '' : 'disabled'} onclick="tpStartCaptainMode()">Captain Draft</button>
+      </div>
+      <div id="tp-result"></div>
     </div>
-    <div id="tp-result"></div>
   </div>`;
 }
 

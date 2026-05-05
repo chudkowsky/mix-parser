@@ -3,11 +3,10 @@
 async function renderDashboard() {
   app.innerHTML = '<div class="loading">Loading…</div>';
 
-  let matches = [], leaderboard = { players: [], guests: [] }, stats = { player_history: [], map_distribution: {} };
+  let leaderboard = { players: [], guests: [] }, stats = { player_history: [], map_distribution: {} };
   try {
     const safeJson = (url, fallback) => fetch(url).then(r => r.json()).catch(() => fallback);
-    [matches, leaderboard, stats, _seasons, _allTitles] = await Promise.all([
-      fetch('/matches').then(r => r.json()),
+    [leaderboard, stats, _seasons, _allTitles] = await Promise.all([
       fetch('/leaderboard').then(r => r.json()),
       fetch('/stats').then(r => r.json()),
       safeJson('/seasons', []),
@@ -20,15 +19,10 @@ async function renderDashboard() {
   }
 
   app.innerHTML = `
-    <div class="tp-nav-card" onclick="navigate('team-picker')">
-      <span class="tp-nav-icon">🎲</span>
-      <span class="tp-nav-label">Pick Teams</span>
-    </div>
     ${uploadCard()}
     ${isAdmin() ? adminSeasonCard() : ''}
     ${leaderboardCard(leaderboard)}
     ${chartsSection(stats, leaderboard.players)}
-    ${matchesSection(matches)}
   `;
 
   initUpload();
@@ -129,7 +123,8 @@ async function deleteMatch(id, btn, redirect = false) {
       const tile = btn.closest('.match-tile');
       tile.style.transition = 'opacity .25s';
       tile.style.opacity = '0';
-      setTimeout(() => { tile.remove(); refreshLeaderboard(); }, 260);
+      const onMatches = location.hash.replace('#', '').split('/')[0] === 'matches';
+      setTimeout(() => { tile.remove(); if (!onMatches) refreshLeaderboard(); }, 260);
     }
   } catch (e) {
     btn.disabled = false;

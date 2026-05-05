@@ -209,6 +209,23 @@ async def leaderboard(conn: sqlite3.Connection = Depends(get_db)):
     return JSONResponse(database.get_leaderboard(conn))
 
 
+@app.get("/maps")
+async def map_stats(conn: sqlite3.Connection = Depends(get_db)):
+    return JSONResponse(database.get_map_stats(conn))
+
+
+@app.get("/players")
+async def list_players(conn: sqlite3.Connection = Depends(get_db)):
+    rows = conn.execute("""
+        SELECT steamid, MAX(name) AS name, COUNT(DISTINCT match_id) AS matches_played,
+               ROUND(SUM(rating * rounds_played) / SUM(rounds_played), 4) AS avg_rating
+        FROM player_ratings
+        GROUP BY steamid
+        ORDER BY avg_rating DESC
+    """).fetchall()
+    return JSONResponse([dict(r) for r in rows])
+
+
 @app.get("/players/{steamid}")
 async def player_profile(steamid: str, conn: sqlite3.Connection = Depends(get_db)):
     row = database.get_player_profile(conn, steamid)

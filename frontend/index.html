@@ -19,7 +19,11 @@
   <div class="header-divider"></div>
   <nav class="header-nav">
     <a class="nav-link" id="nav-leaderboard" onclick="navigate('')">Leaderboard</a>
+    <a class="nav-link" id="nav-matches"     onclick="navigate('matches')">Matches</a>
+    <a class="nav-link" id="nav-players"     onclick="navigate('players')">Players</a>
+    <a class="nav-link" id="nav-maps"        onclick="navigate('maps')">Maps</a>
     <a class="nav-link" id="nav-seasons"     onclick="navigate('seasons')">Seasons</a>
+    <a class="nav-link" id="nav-team-picker" onclick="navigate('team-picker')">Pick Teams</a>
   </nav>
   <button id="back-btn" onclick="history.back()">← Back</button>
   <button id="admin-btn" class="logged-out" onclick="adminBtnClick()">Admin</button>
@@ -56,6 +60,8 @@
 <script src="/static/js/utils.js"></script>
 <script src="/static/js/auth.js"></script>
 <script src="/static/js/leaderboard.js"></script>
+<script src="/static/js/players.js"></script>
+<script src="/static/js/maps.js"></script>
 <script src="/static/js/matches.js"></script>
 <script src="/static/js/charts.js"></script>
 <script src="/static/js/team-picker.js"></script>
