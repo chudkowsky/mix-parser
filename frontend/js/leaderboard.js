@@ -162,7 +162,7 @@ function leaderboardCard(lb) {
   const buildRows = (list) => sorted(list).map((p, i) => `<tr>
     <td class="rank">#${i + 1}</td>
     <td class="player-name" style="cursor:pointer;color:var(--accent)" onclick="navigate('player/${p.steamid}')">
-      ${esc(p.name || p.steamid)}${titleBadges(p.steamid)}
+      ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}${esc(p.name || p.steamid)}${titleBadges(p.steamid)}
     </td>
     <td>${fmtRating(p.avg_rating)}</td>
     <td>${p.avg_adr ?? '—'}</td>

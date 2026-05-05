@@ -12,7 +12,9 @@ async function renderPlayersPage() {
 
   const rows = players.map(p => `
     <tr class="players-row" onclick="navigate('player/${p.steamid}')">
-      <td class="players-name">${esc(p.name || p.steamid)}</td>
+      <td class="players-name">
+        ${p.avatarmedium ? `<img class="player-avatar-md" src="${esc(p.avatarmedium)}" alt="">` : ''}${esc(p.name || p.steamid)}
+      </td>
       <td>${fmtRating(p.avg_rating)}</td>
       <td class="players-maps">${p.matches_played}</td>
     </tr>`

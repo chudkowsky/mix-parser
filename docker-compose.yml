@@ -9,4 +9,5 @@ services:
       - ./uploads:/app/uploads
     environment:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - STEAM_API_KEY=${STEAM_API_KEY}
     restart: unless-stopped

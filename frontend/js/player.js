@@ -102,8 +102,13 @@ async function renderPlayerProfile(steamid) {
   app.innerHTML = `
     <div class="card">
       <div class="card-body">
-        <div style="font-size:1.1rem;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase">${esc(data.name || steamid)}</div>
-        ${titlesHtml}
+        <div style="display:flex;align-items:flex-start;gap:16px">
+          ${data.avatarfull ? `<img class="player-avatar-full" src="${esc(data.avatarfull)}" alt="">` : ''}
+          <div style="min-width:0">
+            <div style="font-size:1.1rem;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase">${esc(data.name || steamid)}</div>
+            ${titlesHtml}
+          </div>
+        </div>
         <div class="stat-row" style="flex-wrap:wrap;gap:.75rem;margin-top:1rem">${statCards}</div>
       </div>
     </div>

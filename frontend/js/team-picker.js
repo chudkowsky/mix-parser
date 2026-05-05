@@ -41,6 +41,7 @@ function buildTeamPickerHTML() {
       : `<span class="tp-row-maps">${p.matches_played} maps</span>`;
     return `<div class="tp-row${sel ? ' selected' : ''}" onclick="tpToggle('${p.steamid}')">
       <span class="tp-row-check">✓</span>
+      ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
       <span class="tp-row-name">${esc(p.name || p.steamid)}</span>
       ${mapsLabel}
       <span class="tp-row-rating">${fmtRating(p.avg_rating)}</span>
@@ -197,6 +198,7 @@ function buildTeamsHTML(pool) {
   const teamRows = (list, targetLabel) => [...list]
     .sort((a, b) => (b.avg_rating ?? 0) - (a.avg_rating ?? 0))
     .map(p => `<div class="tp-team-row tp-team-row-movable" onclick="tpMovePlayer('${p.steamid}')" title="Move to ${targetLabel}">
+      ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
       <span class="tp-team-row-name">${esc(p.name || p.steamid)}</span>
       <span class="tp-team-row-rating ${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
       <span class="tp-move-arrow">${targetLabel === 'Team B' ? '→' : '←'}</span>
@@ -257,6 +259,7 @@ function renderCaptainPicker() {
     const isB = _tpCaptainB === p.steamid;
     return `<div class="tp-cap-row${isA ? ' cap-a' : isB ? ' cap-b' : ''}" onclick="tpPickCaptain('${p.steamid}')">
       <span class="tp-cap-badge">${isA ? 'A' : isB ? 'B' : ''}</span>
+      ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
       <span class="tp-cap-name">${esc(p.name || p.steamid)}</span>
       <span class="${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
     </div>`;
@@ -335,6 +338,7 @@ function renderDraftBoard() {
     return `<div class="tp-draft-card${isCap ? ' tp-draft-captain' : ''}"
       ${drag ? `draggable="true" ondragstart="tpDraftDragStart(event,'${p.steamid}')"` : ''}>
       ${isCap ? '<span class="tp-cap-label">CAP</span>' : ''}
+      ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}
       <span class="tp-draft-name">${esc(p.name || p.steamid)}</span>
       <span class="${rClass(p.avg_rating)}">${fmtRating(p.avg_rating)}</span>
     </div>`;

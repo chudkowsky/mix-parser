@@ -16,11 +16,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import database
+import steam as steam_client
 from awards import generate_season_awards
 from parser import parse_demo
 from heatmap_match import generate_match_heatmap
 
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
+ADMIN_PASSWORD  = os.environ.get("ADMIN_PASSWORD", "changeme")
+STEAM_API_KEY   = os.environ.get("STEAM_API_KEY", "")
 
 
 def _make_admin_token() -> str:
@@ -93,6 +95,15 @@ def get_db():
         yield conn
     finally:
         conn.close()
+
+
+async def _avatars(steamids: list[str]) -> dict:
+    if not STEAM_API_KEY or not steamids:
+        return {}
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None, steam_client.get_avatars, DB_PATH, steamids, STEAM_API_KEY
+    )
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -206,7 +217,12 @@ async def stats(conn: sqlite3.Connection = Depends(get_db)):
 
 @app.get("/leaderboard")
 async def leaderboard(conn: sqlite3.Connection = Depends(get_db)):
-    return JSONResponse(database.get_leaderboard(conn))
+    lb = database.get_leaderboard(conn)
+    steamids = [p["steamid"] for p in lb["players"] + lb["guests"]]
+    avatars = await _avatars(steamids)
+    for p in lb["players"] + lb["guests"]:
+        p["avatar"] = avatars.get(p["steamid"], {}).get("avatar")
+    return JSONResponse(lb)
 
 
 @app.get("/maps")
@@ -223,7 +239,12 @@ async def list_players(conn: sqlite3.Connection = Depends(get_db)):
         GROUP BY steamid
         ORDER BY avg_rating DESC
     """).fetchall()
-    return JSONResponse([dict(r) for r in rows])
+    players = [dict(r) for r in rows]
+    steamids = [p["steamid"] for p in players]
+    avatars = await _avatars(steamids)
+    for p in players:
+        p["avatarmedium"] = avatars.get(p["steamid"], {}).get("avatarmedium")
+    return JSONResponse(players)
 
 
 @app.get("/players/{steamid}")
@@ -231,6 +252,8 @@ async def player_profile(steamid: str, conn: sqlite3.Connection = Depends(get_db
     row = database.get_player_profile(conn, steamid)
     if row is None:
         raise HTTPException(404, "Player not found")
+    avatars = await _avatars([steamid])
+    row["avatarfull"] = avatars.get(steamid, {}).get("avatarfull")
     return JSONResponse(row)
 
 
@@ -246,6 +269,11 @@ async def season_leaderboard(season_id: int, conn: sqlite3.Connection = Depends(
     result = database.get_season_leaderboard(conn, season_id)
     if result is None:
         raise HTTPException(404, "Season not found")
+    players = result.get("players", [])
+    steamids = [p["steamid"] for p in players]
+    avatars = await _avatars(steamids)
+    for p in players:
+        p["avatar"] = avatars.get(p["steamid"], {}).get("avatar")
     return JSONResponse(_sanitize(result))
 
 

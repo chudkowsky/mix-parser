@@ -89,6 +89,14 @@ def init_db(db_path: Path, data_dir: Path) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_pt_steamid ON player_titles(steamid);
         CREATE INDEX IF NOT EXISTS idx_pt_season  ON player_titles(season_id);
+
+        CREATE TABLE IF NOT EXISTS player_avatars (
+            steamid      TEXT PRIMARY KEY,
+            avatar       TEXT,
+            avatarmedium TEXT,
+            avatarfull   TEXT,
+            fetched_at   TEXT
+        );
     """)
     # Migrate existing DBs — add any missing columns
     existing_matches = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
