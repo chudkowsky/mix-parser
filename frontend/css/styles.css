@@ -997,12 +997,12 @@ tr:hover td { background: var(--panel-alt); }
 .map-king { cursor: pointer; color: var(--gold) !important; font-weight: 600; }
 .map-king:hover { text-decoration: underline; }
 .map-side-bar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; margin-top: 0.5rem; background: var(--border); }
-.map-side-ct { background: var(--ct); height: 100%; transition: width 0.3s; }
-.map-side-t  { background: var(--t);  height: 100%; transition: width 0.3s; }
+.map-side-ct { background: var(--ct-bg); height: 100%; transition: width 0.3s; }
+.map-side-t  { background: var(--t-bg);  height: 100%; transition: width 0.3s; }
 .map-side-labels { display: flex; justify-content: space-between; margin-top: 0.2rem; }
 .map-side-label { font-family: var(--mono); font-size: 0.68rem; }
-.map-side-label.ct { color: var(--ct); }
-.map-side-label.t  { color: var(--t); }
+.map-side-label.ct { color: var(--ct-bg); }
+.map-side-label.t  { color: var(--t-bg); }
 
 /* ── Players list page ───────────────────────────────────────────────────── */
 .players-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 13px; }
