@@ -160,7 +160,7 @@ function leaderboardCard(lb) {
   </tr></thead>`;
 
   // ── Rank change indicator (prev_rank comes from server, set before match insert) ─
-  const ratingRanked = [...players].sort((a, b) => (b.avg_rating ?? -Infinity) - (a.avg_rating ?? -Infinity));
+  const ratingRanked = [...players, ...guests].sort((a, b) => (b.avg_rating ?? -Infinity) - (a.avg_rating ?? -Infinity));
   const currentRank = {};
   ratingRanked.forEach((p, i) => { currentRank[p.steamid] = i + 1; });
 

@@ -464,6 +464,9 @@ def delete_match(conn: sqlite3.Connection, match_id: int, data_dir: Path) -> boo
 REGULAR_PLAYER_MIN_MATCHES = 5
 
 
+OVERALL_SEASON_SENTINEL = -1  # stored instead of NULL to avoid SQLite NULL != NULL conflict
+
+
 def snapshot_ranks(conn: sqlite3.Connection, season_id: int | None = None) -> None:
     """Save current rating-sorted ranks before a new match is added."""
     if season_id is None:
@@ -488,7 +491,7 @@ def snapshot_ranks(conn: sqlite3.Connection, season_id: int | None = None) -> No
             (start, end),
         ).fetchall()
 
-    sid_val = season_id  # None stored as NULL
+    sid_val = season_id if season_id is not None else OVERALL_SEASON_SENTINEL
     for rank, row in enumerate(rows, start=1):
         conn.execute(
             """INSERT INTO lb_rank_snapshots (steamid, season_id, rank)
@@ -502,9 +505,10 @@ def snapshot_ranks(conn: sqlite3.Connection, season_id: int | None = None) -> No
 def _attach_prev_ranks(players: list[dict], conn: sqlite3.Connection, season_id: int | None) -> None:
     if not players:
         return
+    sid_val = season_id if season_id is not None else OVERALL_SEASON_SENTINEL
     rows = conn.execute(
-        "SELECT steamid, rank FROM lb_rank_snapshots WHERE season_id IS ?",
-        (season_id,),
+        "SELECT steamid, rank FROM lb_rank_snapshots WHERE season_id = ?",
+        (sid_val,),
     ).fetchall()
     prev = {r["steamid"]: r["rank"] for r in rows}
     for p in players:
