@@ -168,12 +168,6 @@ async def parse(
         save_to.unlink(missing_ok=True)
         raise HTTPException(500, f"Parse error: {exc}") from exc
 
-    # Snapshot ranks before this match changes them
-    database.snapshot_ranks(conn, season_id=None)
-    active_season = database.get_active_season(conn)
-    if active_season:
-        database.snapshot_ranks(conn, season_id=active_season["id"])
-
     match_id = database.insert_match(conn, name, result, file_hash, uploaded_by)
     database.insert_player_ratings(conn, match_id, result["ratings"])
     conn.commit()
@@ -247,8 +241,14 @@ async def stats(conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.get("/leaderboard")
-async def leaderboard(conn: sqlite3.Connection = Depends(get_db)):
-    lb = database.get_leaderboard(conn)
+async def leaderboard(
+    conn: sqlite3.Connection = Depends(get_db),
+    compare_before: str | None = None,
+    compare_matches: int | None = None,
+):
+    if compare_matches is not None:
+        compare_before = database.cutoff_from_match_count(conn, compare_matches)
+    lb = database.get_leaderboard(conn, compare_before=compare_before)
     steamids = [p["steamid"] for p in lb["players"] + lb["guests"]]
     avatars = await _avatars(steamids)
     for p in lb["players"] + lb["guests"]:
@@ -296,8 +296,21 @@ async def list_seasons(conn: sqlite3.Connection = Depends(get_db)):
 
 
 @app.get("/seasons/{season_id}/leaderboard")
-async def season_leaderboard(season_id: int, conn: sqlite3.Connection = Depends(get_db)):
-    result = database.get_season_leaderboard(conn, season_id)
+async def season_leaderboard(
+    season_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    compare_before: str | None = None,
+    compare_matches: int | None = None,
+):
+    if compare_matches is not None:
+        season = database.get_season(conn, season_id)
+        if season:
+            compare_before = database.cutoff_from_match_count(
+                conn, compare_matches,
+                season_start=season["start_date"],
+                season_end=season["end_date"],
+            )
+    result = database.get_season_leaderboard(conn, season_id, compare_before=compare_before)
     if result is None:
         raise HTTPException(404, "Season not found")
     players = result.get("players", [])

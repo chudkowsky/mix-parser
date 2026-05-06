@@ -5,14 +5,27 @@ let _lbSort          = { key: 'avg_rating', dir: 1 }; // 1 = desc, -1 = asc
 let _seasons         = [];
 let _currentSeasonId = null;   // null = Overall
 let _allTitles       = {};     // steamid → [title objects]
+let _compareMode     = { type: 'days', value: 1 }; // default: compare to 1 day ago
 
 // ── Season tabs ───────────────────────────────────────────────────────────────
 
+function buildLbUrl(seasonId) {
+  const base = seasonId === null ? '/leaderboard' : `/seasons/${seasonId}/leaderboard`;
+  const p = new URLSearchParams();
+  if (_compareMode.type === 'days' && _compareMode.value > 0) {
+    const d = new Date(Date.now() - _compareMode.value * 86400000);
+    p.set('compare_before', d.toISOString());
+  } else if (_compareMode.type === 'matches' && _compareMode.value > 0) {
+    p.set('compare_matches', _compareMode.value);
+  }
+  const qs = p.toString();
+  return qs ? `${base}?${qs}` : base;
+}
+
 async function switchSeason(seasonId) {
-  const url = seasonId === null ? '/leaderboard' : `/seasons/${seasonId}/leaderboard`;
   let lb;
   try {
-    lb = await fetch(url).then(r => r.json());
+    lb = await fetch(buildLbUrl(seasonId)).then(r => r.json());
   } catch (e) {
     return;
   }
@@ -20,6 +33,11 @@ async function switchSeason(seasonId) {
   _lbData = lb;
   const card = document.getElementById('leaderboard-card');
   if (card) card.outerHTML = leaderboardCard(lb);
+}
+
+async function setCompareMode(type, value) {
+  _compareMode = { type, value };
+  await switchSeason(_currentSeasonId);
 }
 
 function seasonTabs() {
@@ -86,9 +104,24 @@ function leaderboardCard(lb) {
     ? `<span style="font-size:.72rem;font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted);margin-left:.75rem">min. ${lb.min_matches} mecz${lb.min_matches === 1 ? '' : lb.min_matches < 5 ? 'e' : 'y'} (${lb.total_matches} w sezonie)</span>`
     : '';
 
+  const compareBtns = [
+    { label: '1 mecz',  type: 'matches', value: 1 },
+    { label: '3 mecze', type: 'matches', value: 3 },
+    { label: '7 dni',   type: 'days',    value: 7 },
+    { label: '30 dni',  type: 'days',    value: 30 },
+    { label: '—',       type: 'none',    value: 0 },
+  ].map(o => {
+    const active = _compareMode.type === o.type && (_compareMode.value === o.value || o.type === 'none' && _compareMode.type === 'none');
+    return `<button onclick="setCompareMode('${o.type}',${o.value})"
+      style="padding:2px 9px;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'var(--gold)' : 'transparent'};color:${active ? '#000' : 'var(--text-sub)'};font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.08em;cursor:pointer">${o.label}</button>`;
+  }).join('');
+
   const header = `
     <div class="grid-header">
       <div class="section-title">Ranking${seasonThresholdNote}</div>
+      <div style="display:flex;align-items:center;gap:6px;font-family:'Barlow Condensed',sans-serif;font-size:11px;color:var(--text-muted);letter-spacing:.06em">
+        PORÓWNAJ DO: ${compareBtns}
+      </div>
       <div class="rating-legend">
         <span><i class="dot r-elite"></i><span class="legend-name">Legenda</span> <span class="legend-label">&ge;1.70</span></span>
         <span><i class="dot r-very-high"></i><span class="legend-name">Kozak</span> <span class="legend-label">&ge;1.20</span></span>
@@ -159,13 +192,13 @@ function leaderboardCard(lb) {
     ${th('Mapy',     'matches_played')}
   </tr></thead>`;
 
-  // ── Rank change indicator (prev_rank comes from server, set before match insert) ─
+  // ── Rank change indicator ────────────────────────────────────────────────────
   const ratingRanked = [...players, ...guests].sort((a, b) => (b.avg_rating ?? -Infinity) - (a.avg_rating ?? -Infinity));
   const currentRank = {};
   ratingRanked.forEach((p, i) => { currentRank[p.steamid] = i + 1; });
 
   const rankChange = (p) => {
-    if (_lbSort.key !== 'avg_rating') return '';
+    if (_lbSort.key !== 'avg_rating' || _compareMode.type === 'none') return '';
     const prev = p.prev_rank;
     const curr = currentRank[p.steamid];
     if (prev == null || prev === curr) return '';

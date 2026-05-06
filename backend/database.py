@@ -464,58 +464,59 @@ def delete_match(conn: sqlite3.Connection, match_id: int, data_dir: Path) -> boo
 REGULAR_PLAYER_MIN_MATCHES = 5
 
 
-OVERALL_SEASON_SENTINEL = -1  # stored instead of NULL to avoid SQLite NULL != NULL conflict
-
-
-def snapshot_ranks(conn: sqlite3.Connection, season_id: int | None = None) -> None:
-    """Save current rating-sorted ranks before a new match is added."""
-    if season_id is None:
+def compute_prev_ranks(
+    conn: sqlite3.Connection,
+    compare_before: str,
+    season_start: str | None = None,
+    season_end: str | None = None,
+) -> dict[str, int]:
+    """Return steamid→rank computed from matches uploaded before compare_before."""
+    if season_start:
         rows = conn.execute(
-            """SELECT steamid,
-                      ROUND(SUM(rating * rounds_played) / SUM(rounds_played), 4) AS avg_rating
-               FROM player_ratings GROUP BY steamid ORDER BY avg_rating DESC"""
-        ).fetchall()
-    else:
-        season = get_season(conn, season_id)
-        if not season:
-            return
-        start = season["start_date"]
-        end   = season["end_date"] or datetime.now(timezone.utc).isoformat()
-        rows  = conn.execute(
             """SELECT pr.steamid,
                       ROUND(SUM(pr.rating * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating
                FROM player_ratings pr
                JOIN matches m ON m.id = pr.match_id
-               WHERE m.uploaded_at >= ? AND m.uploaded_at <= ?
+               WHERE m.uploaded_at >= ? AND m.uploaded_at < ? AND m.uploaded_at <= ?
                GROUP BY pr.steamid ORDER BY avg_rating DESC""",
-            (start, end),
+            (season_start, compare_before, season_end or datetime.now(timezone.utc).isoformat()),
         ).fetchall()
+    else:
+        rows = conn.execute(
+            """SELECT steamid,
+                      ROUND(SUM(rating * rounds_played) / SUM(rounds_played), 4) AS avg_rating
+               FROM player_ratings pr
+               JOIN matches m ON m.id = pr.match_id
+               WHERE m.uploaded_at < ?
+               GROUP BY pr.steamid ORDER BY avg_rating DESC""",
+            (compare_before,),
+        ).fetchall()
+    return {r["steamid"]: i + 1 for i, r in enumerate(rows)}
 
-    sid_val = season_id if season_id is not None else OVERALL_SEASON_SENTINEL
-    for rank, row in enumerate(rows, start=1):
-        conn.execute(
-            """INSERT INTO lb_rank_snapshots (steamid, season_id, rank)
-               VALUES (?, ?, ?)
-               ON CONFLICT(steamid, season_id) DO UPDATE SET rank=excluded.rank""",
-            (row["steamid"], sid_val, rank),
-        )
-    conn.commit()
+
+def cutoff_from_match_count(conn: sqlite3.Connection, n: int, season_start: str | None = None, season_end: str | None = None) -> str | None:
+    """Return the uploaded_at of the Nth most recent match (used as compare_before cutoff)."""
+    if season_start:
+        row = conn.execute(
+            """SELECT uploaded_at FROM matches
+               WHERE uploaded_at >= ? AND uploaded_at <= ?
+               ORDER BY uploaded_at DESC LIMIT 1 OFFSET ?""",
+            (season_start, season_end or datetime.now(timezone.utc).isoformat(), n - 1),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            "SELECT uploaded_at FROM matches ORDER BY uploaded_at DESC LIMIT 1 OFFSET ?",
+            (n - 1,),
+        ).fetchone()
+    return row["uploaded_at"] if row else None
 
 
-def _attach_prev_ranks(players: list[dict], conn: sqlite3.Connection, season_id: int | None) -> None:
-    if not players:
-        return
-    sid_val = season_id if season_id is not None else OVERALL_SEASON_SENTINEL
-    rows = conn.execute(
-        "SELECT steamid, rank FROM lb_rank_snapshots WHERE season_id = ?",
-        (sid_val,),
-    ).fetchall()
-    prev = {r["steamid"]: r["rank"] for r in rows}
+def _attach_prev_ranks(players: list[dict], prev: dict[str, int]) -> None:
     for p in players:
         p["prev_rank"] = prev.get(p["steamid"])
 
 
-def get_leaderboard(conn: sqlite3.Connection) -> dict:
+def get_leaderboard(conn: sqlite3.Connection, compare_before: str | None = None) -> dict:
     rows = conn.execute("""
         SELECT
             steamid,
@@ -546,8 +547,10 @@ def get_leaderboard(conn: sqlite3.Connection) -> dict:
     all_rows = [dict(r) for r in rows]
     players = [r for r in all_rows if r["matches_played"] >= REGULAR_PLAYER_MIN_MATCHES]
     guests  = [r for r in all_rows if r["matches_played"] <  REGULAR_PLAYER_MIN_MATCHES]
-    _attach_prev_ranks(players, conn, None)
-    _attach_prev_ranks(guests,  conn, None)
+    if compare_before:
+        prev = compute_prev_ranks(conn, compare_before)
+        _attach_prev_ranks(players, prev)
+        _attach_prev_ranks(guests,  prev)
     return {"players": players, "guests": guests}
 
 
@@ -601,7 +604,7 @@ def delete_season(conn: sqlite3.Connection, season_id: int) -> bool:
 SEASON_PARTICIPATION_THRESHOLD = 0.10  # must have played ≥10% of season matches
 
 
-def get_season_leaderboard(conn: sqlite3.Connection, season_id: int) -> dict | None:
+def get_season_leaderboard(conn: sqlite3.Connection, season_id: int, compare_before: str | None = None) -> dict | None:
     season = get_season(conn, season_id)
     if not season:
         return None
@@ -649,7 +652,9 @@ def get_season_leaderboard(conn: sqlite3.Connection, season_id: int) -> dict | N
     """, (start, end, min_matches)).fetchall()
 
     all_rows = [dict(r) for r in rows]
-    _attach_prev_ranks(all_rows, conn, season_id)
+    if compare_before:
+        prev = compute_prev_ranks(conn, compare_before, season_start=start, season_end=season["end_date"])
+        _attach_prev_ranks(all_rows, prev)
     return {
         "players":       all_rows,
         "guests":        [],
