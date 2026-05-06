@@ -14,7 +14,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-DB_PATH   = Path(__file__).parent / "mix_parser.db"
+DB_PATH   = Path(__file__).parent / "data" / "mix_parser.db"
 DATA_DIR  = Path(__file__).parent / "data"
 
 
