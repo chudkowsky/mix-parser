@@ -30,12 +30,12 @@ async function renderMatchDetail(id) {
     ${detailHeader(data, header)}
     ${detailRatings(ratings)}
     ${rounds.length ? detailTimeline(data, rounds, kills) : ''}
-    ${detailHeatmap(id)}
     ${detailOpeningDuels(ratings)}
     ${detailFlashClutch(ratings, data.clutch_events || [])}
     ${rounds.length ? detailRounds(rounds) : ''}
     ${kills.length ? detailKills(kills) : ''}
     ${detailBomb(data.bomb_events || {})}
+    ${detailHeatmap(id)}
     ${detailRaw(data)}
     ${detailMeta(data, header, kills.length, rounds.length, hsRate)}
   `;
@@ -170,9 +170,9 @@ function detailTimeline(m, rounds) {
 
     return {
       top: `<div style="display:flex;gap:3px">${colsTop.join('')}</div>`,
-      nums: `<div style="display:flex;gap:3px;padding:6px 0">${colsNum.join('')}</div>`,
+      nums: `<div style="display:flex;gap:3px;padding:10px 0">${colsNum.join('')}</div>`,
       bot: `<div style="display:flex;gap:3px">${colsBot.join('')}</div>`,
-      label: `<div style="text-align:center;font-family:Barlow Condensed, sans-serif;font-size:10px;font-weight:700;color:var(--muted);margin-top:10px">${seg.label}</div>`
+      label: `<div style="text-align:center;font-family:Barlow Condensed, sans-serif;font-size:11px;font-weight:800;color:var(--gold);margin-top:10px;letter-spacing:0.08em;opacity:0.9">${seg.label}</div>`
     };
   }
 
@@ -252,13 +252,14 @@ function detailRatings(ratings) {
   const t = ratings.filter(p => p.team === 'TERRORIST');
 
   function overviewRows(list) {
-    return list.map(p => `<div class="ov-row">
+    return list.map(p => `<div class="ov-row" style="cursor:pointer" onclick="navigate('player/${esc(p.steamid)}')">
+      ${p.avatarmedium ? `<img class="player-avatar-sm" src="${esc(p.avatarmedium)}" alt="">` : ''}
       <span class="ov-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
       <div class="ov-stat"><span class="ov-stat-val ${rClass(p.rating)}">${Number(p.rating).toFixed(2)}</span><span class="ov-stat-lbl">Rating</span></div>
-      <div class="ov-stat"><span class="ov-stat-val">${p.kills}/${p.deaths}</span><span class="ov-stat-lbl">K/D</span></div>
-      <div class="ov-stat"><span class="ov-stat-val">${p.kast}%</span><span class="ov-stat-lbl">KAST</span></div>
-      <div class="ov-stat"><span class="ov-stat-val">${p.adr}</span><span class="ov-stat-lbl">ADR</span></div>
-      <div class="ov-stat"><span class="ov-stat-val">${p.hs_pct ?? '—'}%</span><span class="ov-stat-lbl">HS%</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${colKd(p.kills, p.deaths)}</span><span class="ov-stat-lbl">K/D</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${colKast(p.kast)}</span><span class="ov-stat-lbl">KAST</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${colAdr(p.adr)}</span><span class="ov-stat-lbl">ADR</span></div>
+      <div class="ov-stat"><span class="ov-stat-val">${colHs(p.hs_pct)}</span><span class="ov-stat-lbl">HS%</span></div>
     </div>`).join('');
   }
 
@@ -268,7 +269,8 @@ function detailRatings(ratings) {
       const ctR = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
       const tR = p.t_rating != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>` : '';
       const clutch = p.clutch_total ? `${p.clutch_won}/${p.clutch_total}` : '';
-      return `<div class="rating-row" style="flex-wrap:wrap;gap:.35rem">
+      return `<div class="rating-row" style="flex-wrap:wrap;gap:.35rem;cursor:pointer" onclick="navigate('player/${esc(p.steamid)}')">
+        ${p.avatarmedium ? `<img class="player-avatar-sm" src="${esc(p.avatarmedium)}" alt="">` : ''}
         <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
         <span class="rating-row-meta">
           <span>K/D <b>${p.kills}/${p.deaths}</b></span>
@@ -303,8 +305,7 @@ function detailRatings(ratings) {
 
   return `<div class="card" id="ratings-card">
     <div class="card-title" style="justify-content:space-between">
-      <span>Ocena HLTV 2.0</span>
-      <div class="detail-tabs" style="margin:0">
+<div class="detail-tabs" style="margin:0">
         <button class="detail-tab${isOverview ? ' active' : ''}" onclick="switchRatingsTab('overview')">Przegląd</button>
         <button class="detail-tab${!isOverview ? ' active' : ''}" onclick="switchRatingsTab('details')">Szczegóły</button>
       </div>
@@ -349,7 +350,7 @@ function detailOpeningDuels(ratings) {
     <thead><tr><th>Gracz</th><th>Wejścia</th><th>Pojedynki</th><th>Wygr%</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
-  return collapsibleCard('sec-opening', 'Wejścia', content);
+  return collapsibleCard('sec-opening', 'Entry Fragi', content);
 }
 
 function detailFlashClutch(ratings, clutchEvents) {
@@ -478,7 +479,7 @@ function detailKills(kills) {
     <thead><tr><th>Atakujący</th><th>Ofiara</th><th>Broń</th><th></th><th>Dystans</th><th>Runda</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>${note}`;
-  return collapsibleCard('sec-kills', `Kanał zabójstw (${kills.length})`, content);
+  return collapsibleCard('sec-kills', `Zabójstwa (${kills.length})`, content);
 }
 
 function detailBomb(bombEvents) {
@@ -557,7 +558,7 @@ function detailRaw(data) {
 
   return `<div class="card">
     <div class="card-title" style="display:flex;align-items:center;gap:1rem">
-      Surowe JSON
+      Dane do pobrania
       <a href="${url}" download="match_${data.id || 'data'}.json" style="text-decoration:none">
         <button class="download-btn">Pobierz pełny JSON</button>
       </a>

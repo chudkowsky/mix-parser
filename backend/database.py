@@ -271,7 +271,11 @@ def get_match_with_ratings(conn: sqlite3.Connection, match_id: int) -> dict | No
         return None
 
     ratings = conn.execute(
-        "SELECT * FROM player_ratings WHERE match_id = ? ORDER BY rating DESC",
+        """SELECT pr.*, pa.avatarmedium
+           FROM player_ratings pr
+           LEFT JOIN player_avatars pa ON pa.steamid = pr.steamid
+           WHERE pr.match_id = ?
+           ORDER BY pr.rating DESC""",
         (match_id,),
     ).fetchall()
 

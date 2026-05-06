@@ -48,3 +48,25 @@ function mkBadges(mk) {
 function popcount(n) {
   let c = 0; while (n) { c += n & 1; n >>>= 1; } return c;
 }
+
+function colAdr(v) {
+  if (v == null) return '—';
+  const c = v >= 80 ? 'var(--green)' : v >= 60 ? 'var(--gold)' : 'var(--red)';
+  return `<span style="color:${c};font-weight:700">${v}</span>`;
+}
+function colKast(v) {
+  if (v == null) return '—';
+  const c = v >= 75 ? 'var(--green)' : v >= 60 ? 'var(--gold)' : 'var(--red)';
+  return `<span style="color:${c};font-weight:700">${v}%</span>`;
+}
+function colHs(v) {
+  if (v == null) return '—';
+  const c = v >= 50 ? 'var(--green)' : v >= 35 ? 'var(--gold)' : 'var(--red)';
+  return `<span style="color:${c};font-weight:700">${v}%</span>`;
+}
+function colKd(k, d) {
+  if (k == null || d == null) return '—';
+  const ratio = d ? k / d : k;
+  const c = ratio >= 1.2 ? 'var(--green)' : ratio >= 0.9 ? 'var(--gold)' : 'var(--red)';
+  return `<span style="color:${c};font-weight:700">${k}/${d}</span>`;
+}

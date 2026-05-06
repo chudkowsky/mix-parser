@@ -19,7 +19,9 @@ async function renderPlayerProfile(steamid) {
   }
   const playerTitles = _allTitles[steamid] || [];
 
-  const fav = (data.map_stats || [])[0];
+  const mapStats = data.map_stats || [];
+  const fav  = mapStats[0];
+  const worst = mapStats.length > 1 ? mapStats[mapStats.length - 1] : null;
   const kd  = data.total_deaths ? (data.total_kills / data.total_deaths).toFixed(2) : '—';
   const openPct = data.total_opening_attempts
     ? Math.round(data.total_opening_kills / data.total_opening_attempts * 100) + '%'
@@ -33,43 +35,53 @@ async function renderPlayerProfile(steamid) {
 
   const statCards = [
     ['Rating',          fmtRating(data.avg_rating)],
-    ['ADR',             data.avg_adr ?? '—'],
-    ['KAST',            data.avg_kast != null ? data.avg_kast + '%' : '—'],
-    ['HS%',             data.avg_hs_pct != null ? data.avg_hs_pct + '%' : '—'],
+    ['ADR',             colAdr(data.avg_adr)],
+    ['KAST',            colKast(data.avg_kast)],
+    ['HS%',             colHs(data.avg_hs_pct)],
     ['K/D',             kd],
     ['Wejście%',        openPct],
     ['Clutch',          clutchPct],
     ['Śr. flashe',      avgFlash + '/mecz'],
-    ['<span style="display:inline-flex;align-items:center;gap:6px"><img src="/static/assets/icons/knife.svg" width="14" height="14" alt="knife"/> Nóż</span>',         data.total_knife_kills || 0],
-    ['<span style="display:inline-flex;align-items:center;gap:6px"><img src="/static/assets/icons/taser.svg" width="14" height="14" alt="taser"/> Zeus</span>',         data.total_zeus_kills  || 0],
+    ['<img src="/static/assets/icons/knife.svg" width="14" height="14" alt="knife"/> Nóż',   data.total_knife_kills || 0],
+    ['<img src="/static/assets/icons/taser.svg" width="14" height="14" alt="taser"/> Zeus',  data.total_zeus_kills  || 0],
     ['Rozegrane mapy',  data.matches_played ?? 0],
     ['Łączne rundy',    data.total_rounds ?? 0],
   ].map(([lbl, val]) => `<div class="stat"><div class="num">${val}</div><div class="lbl">${lbl}</div></div>`).join('');
+
+  function mapStatCards(m) {
+    return `
+      <div class="stat"><div class="num">${fmtRating(m.avg_rating)}</div><div class="lbl">Rating</div></div>
+      <div class="stat"><div class="num">${colAdr(m.avg_adr)}</div><div class="lbl">ADR</div></div>
+      <div class="stat"><div class="num">${colKast(m.avg_kast)}</div><div class="lbl">KAST</div></div>
+      <div class="stat"><div class="num">${colHs(m.avg_hs_pct)}</div><div class="lbl">HS%</div></div>
+      <div class="stat"><div class="num">${m.matches ?? 0}</div><div class="lbl">Mecze</div></div>`;
+  }
 
   const favSection = fav ? `<div class="card">
     <div class="card-title">Ulubiona mapa</div>
     <div class="card-body" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
       <span style="font-size:1.4rem;font-weight:700;color:var(--accent)">${esc(fav.map_name || '—').replace('de_', '')}</span>
-      <div class="stat-row" style="gap:1.5rem;margin:0">
-        <div class="stat"><div class="num">${fmtRating(fav.avg_rating)}</div><div class="lbl">Rating</div></div>
-        <div class="stat"><div class="num">${fav.avg_adr ?? '—'}</div><div class="lbl">ADR</div></div>
-        <div class="stat"><div class="num">${fav.avg_kast != null ? fav.avg_kast + '%' : '—'}</div><div class="lbl">KAST</div></div>
-        <div class="stat"><div class="num">${fav.avg_hs_pct != null ? fav.avg_hs_pct + '%' : '—'}</div><div class="lbl">HS%</div></div>
-        <div class="stat"><div class="num">${fav.matches ?? 0}</div><div class="lbl">Matches</div></div>
-      </div>
+      <div class="stat-row" style="gap:.5rem;margin:0">${mapStatCards(fav)}</div>
     </div>
   </div>` : '';
 
-  const mapRows = (data.map_stats || []).map(m => {
-    const mkd = m.total_deaths ? (m.total_kills / m.total_deaths).toFixed(2) : '—';
+  const worstSection = worst ? `<div class="card">
+    <div class="card-title">Najgorsza mapa</div>
+    <div class="card-body" style="display:flex;align-items:center;gap:2rem;flex-wrap:wrap">
+      <span style="font-size:1.4rem;font-weight:700;color:var(--red)">${esc(worst.map_name || '—').replace('de_', '')}</span>
+      <div class="stat-row" style="gap:.5rem;margin:0">${mapStatCards(worst)}</div>
+    </div>
+  </div>` : '';
+
+  const mapRows = mapStats.map(m => {
     return `<tr>
       <td>${esc(m.map_name || '—')}</td>
       <td>${m.matches}</td>
       <td>${fmtRating(m.avg_rating)}</td>
-      <td>${m.avg_adr ?? '—'}</td>
-      <td>${m.avg_kast != null ? m.avg_kast + '%' : '—'}</td>
-      <td>${m.avg_hs_pct != null ? m.avg_hs_pct + '%' : '—'}</td>
-      <td class="kd">${m.total_kills}/${m.total_deaths}</td>
+      <td>${colAdr(m.avg_adr)}</td>
+      <td>${colKast(m.avg_kast)}</td>
+      <td>${colHs(m.avg_hs_pct)}</td>
+      <td>${colKd(m.total_kills, m.total_deaths)}</td>
       <td>${m.total_flash_enemies ?? '—'}</td>
     </tr>`;
   }).join('');
@@ -83,10 +95,10 @@ async function renderPlayerProfile(steamid) {
       <td>${esc(m.map_name || '—')}</td>
       <td>${fmtRating(m.rating)}</td>
       <td>${ctR} ${tR}</td>
-      <td class="kd">${m.kills}/${m.deaths}</td>
-      <td>${m.adr ?? '—'}</td>
-      <td>${m.kast != null ? m.kast + '%' : '—'}</td>
-      <td>${m.hs_pct != null ? m.hs_pct + '%' : '—'}</td>
+      <td>${colKd(m.kills, m.deaths)}</td>
+      <td>${colAdr(m.adr)}</td>
+      <td>${colKast(m.kast)}</td>
+      <td>${colHs(m.hs_pct)}</td>
       <td>${m.flash_enemies || '—'}</td>
       <td>${m.clutch_total ? `${m.clutch_won}/${m.clutch_total}` : '—'}</td>
       <td>${mkBadges(mk)}</td>
@@ -105,14 +117,22 @@ async function renderPlayerProfile(steamid) {
         <div style="display:flex;align-items:flex-start;gap:16px">
           ${data.avatarfull ? `<img class="player-avatar-full" src="${esc(data.avatarfull)}" alt="">` : ''}
           <div style="min-width:0">
-            <div style="font-size:1.1rem;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase">${esc(data.name || steamid)}</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="font-size:1.6rem;font-weight:700;color:var(--text);font-family:'Barlow Condensed',sans-serif;letter-spacing:.04em;text-transform:uppercase">${esc(data.name || steamid)}</div>
+              <a href="https://steamcommunity.com/profiles/${encodeURIComponent(steamid)}" target="_blank" rel="noopener" title="Profil Steam" style="display:inline-flex;align-items:center;opacity:0.5;transition:opacity 0.15s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">
+                <img src="/static/assets/icons/Steam_icon_logo.svg" width="36" height="36" alt="Steam">
+              </a>
+            </div>
             ${titlesHtml}
           </div>
         </div>
-        <div class="stat-row" style="flex-wrap:wrap;gap:.75rem;margin-top:1rem">${statCards}</div>
+        <div style="border-top:1px solid var(--border);margin-top:1rem;padding-top:1rem">
+          <div class="stat-row" style="flex-wrap:wrap;gap:.5rem">${statCards}</div>
+        </div>
       </div>
     </div>
     ${favSection}
+    ${worstSection}
     ${mapRows ? `<div class="card">
       <div class="card-title">Statystyki map</div>
       <div class="table-wrap"><table>
@@ -121,7 +141,7 @@ async function renderPlayerProfile(steamid) {
       </table></div>
     </div>` : ''}
     <div class="card">
-      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <div class="card-title" style="justify-content:space-between;flex-wrap:wrap">
         <span>Trend ratingu</span>
         <div id="ratingRangeBtns" style="display:flex;gap:4px">
           ${[10,20,50,0].map((d,i) => `<button onclick="setRatingRange(${d})" data-range="${d}" style="padding:3px 10px;border:1px solid #2e3850;background:${i===0?'#F5C542':'transparent'};color:${i===0?'#000':'#7a8aaa'};font-weight:${i===0?'700':'normal'};font-family:'Barlow Condensed',sans-serif;font-size:11px;letter-spacing:.08em;cursor:pointer">${d === 0 ? 'Wszystko' : 'Ostatnie '+d}</button>`).join('')}
