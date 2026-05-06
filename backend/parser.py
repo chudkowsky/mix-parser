@@ -271,9 +271,11 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
 
     # ── 9. Clutch detection (1vX) ────────────────────────────────────────────
     # A clutch: player is the last alive on their team while enemies remain alive
-    # Track alive counts per round over time
-    clutch_won:   dict[str, int] = defaultdict(int)
-    clutch_total: dict[str, int] = defaultdict(int)
+    clutch_won:       dict[str, int]        = defaultdict(int)
+    clutch_total:     dict[str, int]        = defaultdict(int)
+    # breakdown[sid][vs] = [won, total]
+    clutch_breakdown: dict[str, dict]       = defaultdict(lambda: {v: [0, 0] for v in range(1, 6)})
+    clutch_events:    list[dict]            = []
 
     for rnd, kill_list in round_kills.items():
         sorted_kills = sorted(kill_list, key=lambda k: k["tick"])
@@ -295,7 +297,7 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
                 if team:
                     alive[sid] = team
 
-        clutch_candidate: dict[str, bool] = {}  # steamid -> already flagged
+        clutch_candidate: dict[str, int] = {}  # steamid -> enemies_alive when flagged
 
         for kill in sorted_kills:
             vic = kill["victim"]
@@ -311,21 +313,32 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
                 if cnt == 1:
                     # Find the last player alive on this team
                     last = next((sid for sid, t in alive.items() if t == team), None)
-                    if last and not clutch_candidate.get(last):
+                    if last and last not in clutch_candidate:
                         enemies_alive = sum(c for t, c in team_counts.items() if t != team)
                         if enemies_alive >= 1:
                             clutch_total[last] += 1
-                            clutch_candidate[last] = True
+                            clutch_candidate[last] = enemies_alive
 
         # Determine clutch winners: player's team won the round
-        winner_team = round_winners.get(rnd) if round_winners else None
-        for sid, flagged in clutch_candidate.items():
-            if not flagged:
-                continue
+        # winner_team can be "T" or "CT" from round_end events; normalise to "TERRORIST"/"CT"
+        _raw_winner = round_winners.get(rnd) if round_winners else None
+        winner_team = "TERRORIST" if _raw_winner == "T" else _raw_winner
+        for sid, vs in clutch_candidate.items():
             team = "CT" if rnd in player_side_rounds[sid]["CT"] else "TERRORIST"
             won = (winner_team == team)
             if won:
                 clutch_won[sid] += 1
+            vs_key = min(vs, 5)
+            clutch_breakdown[sid][vs_key][1] += 1
+            if won:
+                clutch_breakdown[sid][vs_key][0] += 1
+            clutch_events.append({
+                "round":   rnd,
+                "steamid": sid,
+                "name":    player_names.get(sid, sid),
+                "vs":      vs,
+                "won":     won,
+            })
 
     # ── 10. Compute final per-player results ─────────────────────────────────
     results = []
@@ -437,14 +450,16 @@ def _compute_ratings(kills_df, damages_df, rounds_df, spawn_df=None,
             "t_rounds":   t_n,
             "flash_enemies":  fe,
             "flash_avg_dur":  favg,
-            "clutch_won":     clutch_won.get(sid, 0),
-            "clutch_total":   clutch_total.get(sid, 0),
+            "clutch_won":       clutch_won.get(sid, 0),
+            "clutch_total":     clutch_total.get(sid, 0),
+            "clutch_breakdown": {str(k): v for k, v in clutch_breakdown[sid].items()},
             "knife_kills":    knife_kills_by_player.get(sid, 0),
             "zeus_kills":     zeus_kills_by_player.get(sid, 0),
         })
 
     results.sort(key=lambda p: p["rating"], reverse=True)
-    return results
+    clutch_events.sort(key=lambda e: e["round"])
+    return results, clutch_events
 
 
 # ── Main entry point ──────────────────────────────────────────────────────────
@@ -478,7 +493,7 @@ def parse_demo(file_path: str | Path) -> dict:
             if r.get("total_rounds_played")
         }
 
-        ratings = _compute_ratings(kills, damages, rounds, spawn_df, blind_df, round_winners)
+        ratings, clutch_events = _compute_ratings(kills, damages, rounds, spawn_df, blind_df, round_winners)
 
         bomb_events = {}
         for ev in ("bomb_planted", "bomb_defused", "bomb_dropped"):
@@ -492,12 +507,24 @@ def parse_demo(file_path: str | Path) -> dict:
                     p.parse_event(ev, player=["X", "Y", "Z", "team_name"])
                 )
 
+    TICK_RATE = 64
+    kills_records  = _df_to_records(kills)
+    rounds_records = _df_to_records(rounds)
+    all_ticks = (
+        [k["tick"] for k in kills_records  if k.get("tick")]
+        + [r["tick"] for r in rounds_records if r.get("tick")]
+    )
+    max_tick = max(all_ticks) if all_ticks else 0
+    duration_seconds = int(max_tick / TICK_RATE)
+
     return {
         "header":           header,
         "available_events": available_events,
         "ratings":          ratings,
-        "rounds":           _df_to_records(rounds),
-        "kills":            _df_to_records(kills),
+        "clutch_events":    clutch_events,
+        "duration_seconds": duration_seconds,
+        "rounds":           rounds_records,
+        "kills":            kills_records,
         "damages":          _df_to_records(damages),
         "blind_events":     _df_to_records(blind_df) if blind_df is not None else [],
         "bomb_events":      bomb_events,

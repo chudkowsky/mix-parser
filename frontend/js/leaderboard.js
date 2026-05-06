@@ -154,8 +154,8 @@ function leaderboardCard(lb) {
     ${th('Wejście%', 'opening_pct')}
     ${th('Clutch',   'clutch')}
     ${th('Flashe',   'total_flash_enemies')}
-    ${th('🔪',       'total_knife_kills')}
-    ${th('⚡',       'total_zeus_kills')}
+    ${th('<img src="/static/assets/icons/knife.svg" width="14" height="14" alt="knife"/>',       'total_knife_kills')}
+    ${th('<img src="/static/assets/icons/taser.svg" width="14" height="14" alt="taser"/>',       'total_zeus_kills')}
     ${th('Mapy',     'matches_played')}
   </tr></thead>`;
 

@@ -42,6 +42,22 @@
   </div>
 </div>
 
+<!-- Post-parse date modal -->
+<div class="modal-overlay" id="date-modal">
+  <div class="modal">
+    <h2>Gotowy do zapisania</h2>
+    <div class="match-summary" id="date-modal-summary"></div>
+    <div>
+      <label for="date-modal-input">Data dodania</label>
+      <input type="date" id="date-modal-input" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="confirmMatchDate(false)">Anuluj (usuń)</button>
+      <button class="btn-confirm" onclick="confirmMatchDate(true)">Zatwierdź</button>
+    </div>
+  </div>
+</div>
+
 <!-- Admin login modal -->
 <div class="modal-overlay" id="login-modal" onclick="if(event.target===this) closeLoginModal()">
   <div class="modal">

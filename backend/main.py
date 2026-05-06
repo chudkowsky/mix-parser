@@ -176,7 +176,10 @@ async def parse(
     background_tasks.add_task(save_to.unlink, True)
     background_tasks.add_task(generate_match_heatmap, match_id, DATA_DIR, FRONTEND)
 
-    return JSONResponse(_sanitize({"match_id": match_id, "already_parsed": False, **result}))
+    match_row = conn.execute("SELECT ct_score, t_score, map_name, total_rounds FROM matches WHERE id = ?", (match_id,)).fetchone()
+    extra = dict(match_row) if match_row else {}
+
+    return JSONResponse(_sanitize({"match_id": match_id, "already_parsed": False, **extra, **result}))
 
 
 @app.get("/matches")
@@ -196,6 +199,28 @@ async def match_detail(match_id: int, conn: sqlite3.Connection = Depends(get_db)
         **full,
         **row,  # DB fields overwrite (ratings from DB, not stale disk copy)
     }))
+
+
+@app.patch("/matches/{match_id}/date")
+async def update_match_date(
+    match_id: int,
+    date: str = Form(...),
+    conn: sqlite3.Connection = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    # Accept YYYY-MM-DD, store as ISO datetime at noon UTC so grouping by date works
+    try:
+        parsed = datetime.strptime(date.strip(), "%Y-%m-%d")
+        iso = parsed.replace(hour=12, tzinfo=timezone.utc).isoformat()
+    except ValueError:
+        raise HTTPException(400, "Date must be YYYY-MM-DD")
+    updated = conn.execute(
+        "UPDATE matches SET uploaded_at = ? WHERE id = ?", (iso, match_id)
+    ).rowcount
+    conn.commit()
+    if not updated:
+        raise HTTPException(404, "Match not found")
+    return JSONResponse({"updated": match_id, "uploaded_at": iso})
 
 
 @app.delete("/matches/{match_id}")

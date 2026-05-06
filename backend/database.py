@@ -108,6 +108,8 @@ def init_db(db_path: Path, data_dir: Path) -> None:
         conn.execute("ALTER TABLE matches ADD COLUMN ct_score INTEGER")
     if "t_score" not in existing_matches:
         conn.execute("ALTER TABLE matches ADD COLUMN t_score INTEGER")
+    if "duration_seconds" not in existing_matches:
+        conn.execute("ALTER TABLE matches ADD COLUMN duration_seconds INTEGER")
 
     existing_pr = {r[1] for r in conn.execute("PRAGMA table_info(player_ratings)")}
     new_pr_cols = {
@@ -123,9 +125,10 @@ def init_db(db_path: Path, data_dir: Path) -> None:
         "flash_avg_dur":  "REAL",
         "clutch_won":     "INTEGER",
         "clutch_total":   "INTEGER",
-        "multi_kills":    "TEXT",
-        "knife_kills":    "INTEGER",
-        "zeus_kills":     "INTEGER",
+        "multi_kills":       "TEXT",
+        "knife_kills":       "INTEGER",
+        "zeus_kills":        "INTEGER",
+        "clutch_breakdown":  "TEXT",
     }
     for col, typ in new_pr_cols.items():
         if col not in existing_pr:
@@ -170,8 +173,8 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
 
     cur = conn.execute(
         """INSERT INTO matches
-           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, ct_score, t_score, uploaded_at, uploaded_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           (filename, file_hash, map_name, server_name, patch_version, ct_team_name, t_team_name, total_rounds, ct_score, t_score, uploaded_at, uploaded_by, duration_seconds)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             filename,
             file_hash,
@@ -185,6 +188,7 @@ def insert_match(conn: sqlite3.Connection, filename: str, parsed: dict, file_has
             t_score  or None,
             datetime.now(timezone.utc).isoformat(),
             uploaded_by,
+            parsed.get("duration_seconds"),
         ),
     )
     return cur.lastrowid
@@ -198,8 +202,8 @@ def insert_player_ratings(conn: sqlite3.Connection, match_id: int, ratings: list
             hs_pct, survive_pct, opening_kills, opening_attempts,
             ct_rating, ct_rounds, t_rating, t_rounds,
             flash_enemies, flash_avg_dur, clutch_won, clutch_total,
-            multi_kills, knife_kills, zeus_kills)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            multi_kills, knife_kills, zeus_kills, clutch_breakdown)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         [
             (
                 match_id,
@@ -214,6 +218,7 @@ def insert_player_ratings(conn: sqlite3.Connection, match_id: int, ratings: list
                 p.get("clutch_won"), p.get("clutch_total"),
                 json.dumps(p.get("multi_kills") or {}),
                 p.get("knife_kills", 0), p.get("zeus_kills", 0),
+                json.dumps(p.get("clutch_breakdown") or {}),
             )
             for p in ratings
         ],

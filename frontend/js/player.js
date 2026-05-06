@@ -40,8 +40,8 @@ async function renderPlayerProfile(steamid) {
     ['Wejście%',        openPct],
     ['Clutch',          clutchPct],
     ['Śr. flashe',      avgFlash + '/mecz'],
-    ['🔪 Nóż',         data.total_knife_kills || 0],
-    ['⚡ Zeus',         data.total_zeus_kills  || 0],
+    ['<span style="display:inline-flex;align-items:center;gap:6px"><img src="/static/assets/icons/knife.svg" width="14" height="14" alt="knife"/> Nóż</span>',         data.total_knife_kills || 0],
+    ['<span style="display:inline-flex;align-items:center;gap:6px"><img src="/static/assets/icons/taser.svg" width="14" height="14" alt="taser"/> Zeus</span>',         data.total_zeus_kills  || 0],
     ['Rozegrane mapy',  data.matches_played ?? 0],
     ['Łączne rundy',    data.total_rounds ?? 0],
   ].map(([lbl, val]) => `<div class="stat"><div class="num">${val}</div><div class="lbl">${lbl}</div></div>`).join('');

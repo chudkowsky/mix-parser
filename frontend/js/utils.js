@@ -13,6 +13,13 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function fmtDuration(seconds) {
+  if (!seconds) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function fmtRating(r) {
   if (r == null) return '—';
   return `<span class="${rClass(r)}">${Number(r).toFixed(2)}</span>`;

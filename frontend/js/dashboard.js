@@ -39,6 +39,17 @@ function uploadCard() {
       </div>
       <button class="parse-btn" id="parseBtn" disabled>Rozpocznij analizę</button>
     </div>
+    <div id="upload-progress-wrap">
+      <div class="upload-progress-label">
+        <span id="progress-phase">Wysyłanie</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+    </div>
+    <div class="parse-spinner" id="parse-spinner">
+      <div class="spinner-ring"></div>
+      <span>Parsowanie dema<span class="parse-dots"></span></span>
+    </div>
     <div id="upload-status"></div>
   </div>`;
 }
@@ -71,35 +82,140 @@ function initUpload() {
     statusEl.textContent = '';
   }
 
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', () => {
     if (!file) return;
     btn.disabled = true;
-    statusEl.style.color = 'var(--text-dim)';
-    statusEl.textContent = 'Wysyłanie i analiza…';
+    statusEl.textContent = '';
+
+    const progressWrap = document.getElementById('upload-progress-wrap');
+    const progressBar  = document.getElementById('progress-bar');
+    const progressPhase = document.getElementById('progress-phase');
+    const progressPct   = document.getElementById('progress-pct');
+
+    function setUploadPhase(pct) {
+      progressWrap.classList.add('visible');
+      progressBar.classList.remove('phase-parse', 'parsing');
+      progressBar.style.width = pct + '%';
+      progressPhase.innerHTML = 'Wysyłanie';
+      progressPct.textContent = pct + '%';
+    }
+
+    function setParsePhase() {
+      progressWrap.classList.remove('visible');
+      document.getElementById('parse-spinner').classList.add('visible');
+    }
+
+    function resetProgress() {
+      progressWrap.classList.remove('visible');
+      progressBar.classList.remove('phase-parse', 'parsing');
+      progressBar.style.width = '0%';
+      document.getElementById('parse-spinner').classList.remove('visible');
+    }
 
     const form = new FormData();
     form.append('file', file);
     const name = getUserName();
     if (name) form.append('uploaded_by', name);
 
-    try {
-      const res  = await fetch('/parse', { method: 'POST', body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || res.statusText);
-      if (data.already_parsed) {
-        statusEl.style.color = 'var(--accent)';
-        statusEl.textContent = `To demo było już przeanalizowane (mecz #${data.id}). Wyświetlam istniejące wyniki.`;
-      } else {
-        statusEl.style.color = 'var(--green)';
-        statusEl.textContent = `Przeanalizowano! Mecz #${data.match_id} zapisany.`;
+    setUploadPhase(0);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/parse');
+
+    xhr.upload.addEventListener('progress', e => {
+      if (e.lengthComputable) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        setUploadPhase(pct);
+        if (pct === 100) setParsePhase();
       }
-      setTimeout(() => renderDashboard(), 800);
-    } catch (e) {
+    });
+
+    xhr.upload.addEventListener('load', () => setParsePhase());
+
+    xhr.addEventListener('load', () => {
+      resetProgress();
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 400) throw new Error(data.detail || xhr.statusText);
+        if (data.already_parsed) {
+          statusEl.style.color = 'var(--accent)';
+          statusEl.textContent = `To demo było już przeanalizowane (mecz #${data.id}). Wyświetlam istniejące wyniki.`;
+          setTimeout(() => renderDashboard(), 800);
+        } else {
+          openDateModal(data.match_id, data);
+        }
+      } catch (e) {
+        btn.disabled = false;
+        statusEl.style.color = 'var(--red)';
+        statusEl.textContent = `Błąd: ${e.message}`;
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      resetProgress();
       btn.disabled = false;
       statusEl.style.color = 'var(--red)';
-      statusEl.textContent = `Błąd: ${e.message}`;
-    }
+      statusEl.textContent = 'Błąd połączenia z serwerem.';
+    });
+
+    xhr.send(form);
   });
+}
+
+// ── Post-parse date modal ─────────────────────────────────────────────────────
+
+let _dateModalMatchId = null;
+
+function openDateModal(matchId, data) {
+  _dateModalMatchId = matchId;
+
+  const today = new Date().toLocaleDateString('sv'); // YYYY-MM-DD
+  document.getElementById('date-modal-input').value = today;
+
+  const map    = data.map_name || data.header?.map_name || '—';
+  const rounds = data.total_rounds ?? '—';
+  const ct     = data.ct_score ?? '—';
+  const t      = data.t_score  ?? '—';
+  const dur = data.duration_seconds ? fmtDuration(data.duration_seconds) : null;
+  document.getElementById('date-modal-summary').innerHTML = `
+    <span><strong>Mecz #${matchId}</strong></span>
+    <span>Mapa: <strong>${esc(map)}</strong></span>
+    <span>Wynik: <strong>${t} : ${ct}</strong> &nbsp;·&nbsp; ${rounds} rund${dur ? ` &nbsp;·&nbsp; ${dur}` : ''}</span>
+  `;
+
+  document.getElementById('date-modal').classList.add('open');
+}
+
+async function confirmMatchDate(save) {
+  const overlay = document.getElementById('date-modal');
+  overlay.classList.remove('open');
+  const matchId = _dateModalMatchId;
+  _dateModalMatchId = null;
+
+  if (!save && matchId) {
+    await fetch(`/matches/${matchId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${getAdminToken()}` },
+    });
+    renderDashboard();
+    return;
+  }
+
+  if (save && matchId) {
+    const date = document.getElementById('date-modal-input').value;
+    const today = new Date().toLocaleDateString('sv');
+    if (date && date !== today) {
+      const form = new FormData();
+      form.append('date', date);
+      await fetch(`/matches/${matchId}/date`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${getAdminToken()}` },
+        body: form,
+      });
+    }
+  }
+
+  renderDashboard();
 }
 
 // ── Delete match ──────────────────────────────────────────────────────────────

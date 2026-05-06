@@ -1,6 +1,6 @@
 // ── Match Detail ──────────────────────────────────────────────────────────────
 
-let _ratingsTab     = 'overview';
+let _ratingsTab = 'overview';
 let _currentRatings = [];
 
 async function renderMatchDetail(id) {
@@ -16,12 +16,12 @@ async function renderMatchDetail(id) {
     return;
   }
 
-  const kills   = data.kills   || [];
-  const rounds  = data.rounds  || [];
+  const kills = data.kills || [];
+  const rounds = data.rounds || [];
   const ratings = data.ratings || [];
-  const header  = data.header  || {};
+  const header = data.header || {};
   _currentRatings = ratings;
-  _ratingsTab     = 'overview';
+  _ratingsTab = 'overview';
 
   const hs = kills.filter(k => k.headshot).length;
   const hsRate = kills.length ? Math.round(hs / kills.length * 100) : 0;
@@ -29,11 +29,12 @@ async function renderMatchDetail(id) {
   app.innerHTML = `
     ${detailHeader(data, header)}
     ${detailRatings(ratings)}
+    ${rounds.length ? detailTimeline(data, rounds, kills) : ''}
     ${detailHeatmap(id)}
     ${detailOpeningDuels(ratings)}
-    ${detailFlashClutch(ratings)}
+    ${detailFlashClutch(ratings, data.clutch_events || [])}
     ${rounds.length ? detailRounds(rounds) : ''}
-    ${kills.length  ? detailKills(kills)   : ''}
+    ${kills.length ? detailKills(kills) : ''}
     ${detailBomb(data.bomb_events || {})}
     ${detailRaw(data)}
     ${detailMeta(data, header, kills.length, rounds.length, hsRate)}
@@ -45,20 +46,20 @@ async function renderMatchDetail(id) {
 function detailHeader(m, header) {
   const mapName = m.map_name || header.map_name || '';
   const bgStyle = mapName
-    ? `background-image: url('/static/maps/${encodeURIComponent(mapName)}.png')`
+    ? `background-image: url('/static/maps/${encodeURIComponent(mapName)}_big.png')`
     : `background: #1a1c28`;
 
   const score = (m.ct_score != null && m.t_score != null)
     ? (() => {
-        const a = m.t_score, b = m.ct_score;
-        const aW = a > b ? 'score-win' : (a < b ? 'score-lose' : 'score-win');
-        const bW = b > a ? 'score-win' : (b < a ? 'score-lose' : 'score-win');
-        return `<div class="match-hero-score">
+      const a = m.t_score, b = m.ct_score;
+      const aW = a > b ? 'score-win' : (a < b ? 'score-lose' : 'score-win');
+      const bW = b > a ? 'score-win' : (b < a ? 'score-lose' : 'score-win');
+      return `<div class="match-hero-score">
           <span class="${aW}">${a}</span>
           <span class="match-hero-score-sep">:</span>
           <span class="${bW}">${b}</span>
         </div>`;
-      })()
+    })()
     : '';
 
   return `<div class="match-hero">
@@ -73,17 +74,171 @@ function detailHeader(m, header) {
   </div>`;
 }
 
+function detailTimeline(m, rounds) {
+  // Team A = starts as CT (rounds 1-12), Team B = starts as T
+  // Side swap logic mirrors database.py insert_match
+  function teamAisCT(rnd) {
+    if (rnd <= 12) return true;
+    if (rnd <= 24) return false;
+    // OT: alternates every 3 rounds starting at 25
+    return Math.floor((rnd - 25) / 3) % 2 === 1;
+  }
+
+  const nameA = m.ct_team_name && m.ct_team_name !== 'CT' ? m.ct_team_name : 'Drużyna A';
+  const nameB = m.t_team_name && m.t_team_name !== 'TERRORIST' ? m.t_team_name : 'Drużyna B';
+
+  // Build segments: normal halves (12 rounds) + OT halves (3 rounds each)
+  const total = rounds.length;
+  const segments = [];
+  if (total > 0) {
+    segments.push({ label: '1. POŁOWA', from: 1, to: Math.min(12, total) });
+    if (total > 12) segments.push({ label: '2. POŁOWA', from: 13, to: Math.min(24, total) });
+    let ot = 1;
+    let r = 25;
+    while (r <= total) {
+      segments.push({ label: `OT ${ot}A`, from: r, to: Math.min(r + 2, total) });
+      if (r + 3 <= total)
+        segments.push({ label: `OT ${ot}B`, from: r + 3, to: Math.min(r + 5, total) });
+      r += 6; ot++;
+    }
+  }
+
+  const roundMap = {};
+  rounds.forEach(rr => { const idx = rr.total_rounds_played ?? rr.round ?? rr.total_rounds_played; roundMap[idx] = rr; });
+
+  function reasonIcon(reason) {
+    const iconMap = {
+      'bomb_exploded': '/static/assets/icons/bomb.svg',
+      'bomb_defused': '/static/assets/icons/defuser.svg',
+      'target_bombed': '/static/assets/icons/bomb.svg',
+      't_killed': '/static/assets/icons/elimination.svg',
+      'ct_killed': '/static/assets/icons/elimination.svg',
+      'time_ran_out': '/static/assets/icons/time_exp.svg',
+      'target_saved': '/static/assets/icons/elimination_headshot.svg',
+    };
+    const iconPath = iconMap[reason];
+    if (!iconPath) return '';
+    return `<img src="${iconPath}" width="14" height="14" style="display:block;filter:brightness(0)" alt="${reason}"/>`;
+  }
+
+  function renderSegment(seg) {
+    const colsTop = [];
+    const colsNum = [];
+    const colsBot = [];
+
+    for (let rnd = seg.from; rnd <= seg.to; rnd++) {
+      const r = roundMap[rnd];
+      if (!r) {
+        colsTop.push(`<div style="flex:1;min-width:18px;padding:3px"></div>`);
+        colsNum.push(`<div style="flex:1;text-align:center;font-family:IBM Plex Mono,monospace;font-size:9px;color:var(--muted)">${rnd}</div>`);
+        colsBot.push(`<div style="flex:1;min-width:18px;padding:3px"></div>`);
+        continue;
+      }
+
+      const aIsCT = teamAisCT(rnd);
+      const aWon = (aIsCT && r.winner === 'CT') || (!aIsCT && r.winner === 'T');
+      const wonA = Boolean(aWon);
+      const wonB = !wonA;
+      const topWon = wonA;
+      const botWon = wonB;
+      const topColor = topWon ? 'var(--team-a)' : 'transparent';
+      const botColor = botWon ? 'var(--team-b)' : 'transparent';
+
+      const icon = reasonIcon(r.reason || '');
+
+      const ace = r.ace || (r.ace === undefined ? false : r.ace);
+      const clutch = r.clutch || (r.clutch === undefined ? false : r.clutch);
+      const pistol = r.pistol || (r.pistol === undefined ? false : r.pistol);
+
+      const badge = ace ? `<span style="position:absolute;top:-6px;right:-6px;background:var(--gold);color:#0d0d0d;padding:0 4px;border-radius:8px;font-size:8px;font-weight:800;line-height:12px">ACE</span>`
+        : (clutch ? `<span style="position:absolute;top:-6px;right:-6px;background:var(--gold);color:#0d0d0d;padding:0 4px;border-radius:8px;font-size:8px;font-weight:800;line-height:12px">${esc(clutch)}</span>` : '');
+
+      const pistolTag = pistol ? `<span style="position:absolute;bottom:-6px;left:-6px;font-family:IBM Plex Mono,monospace;font-size:8px;background:#0d0d0d;color:var(--gold);padding:1px 4px;border-radius:2px;border:1px solid var(--gold)">P</span>` : '';
+
+      colsTop.push(`<div style="flex:1;min-width:18px;padding:3px;position:relative">
+        <div style="height:30px;border-radius:3px;display:flex;align-items:center;justify-content:center;background:${topWon ? (aIsCT ? 'var(--team-a)' : 'var(--team-a)') : 'transparent'};border:${topWon? 'none':'1px solid var(--border)'}">${topWon ? `<span style=\"font-size:14px;line-height:1;color:#181e2c\">${icon}</span>` : ''}</div>
+        ${badge}${pistolTag}
+      </div>`);
+
+      colsNum.push(`<div style="flex:1;text-align:center;font-family:IBM Plex Mono,monospace;font-size:9px;color:${rnd%5===0? 'var(--muted)':'#6f7d98'}">${rnd}</div>`);
+
+      colsBot.push(`<div style="flex:1;min-width:18px;padding:3px;position:relative">
+        <div style="height:30px;border-radius:3px;display:flex;align-items:center;justify-content:center;background:${botWon ? (aIsCT ? 'var(--team-b)' : 'var(--team-b)') : 'transparent'};border:${botWon? 'none':'1px solid var(--border)'}">${botWon ? `<span style=\"font-size:14px;line-height:1;color:#181e2c\">${icon}</span>` : ''}</div>
+        ${badge}${pistolTag}
+      </div>`);
+    }
+
+    return {
+      top: `<div style="display:flex;gap:3px">${colsTop.join('')}</div>`,
+      nums: `<div style="display:flex;gap:3px;padding:6px 0">${colsNum.join('')}</div>`,
+      bot: `<div style="display:flex;gap:3px">${colsBot.join('')}</div>`,
+      label: `<div style="text-align:center;font-family:Barlow Condensed, sans-serif;font-size:10px;font-weight:700;color:var(--muted);margin-top:10px">${seg.label}</div>`
+    };
+  }
+
+  // compute scores
+  let scoreA = 0, scoreB = 0;
+  rounds.forEach(r => {
+    const idx = r.total_rounds_played ?? r.round ?? r.total_rounds_played;
+    const aIsCT = teamAisCT(idx);
+    const aWon = (aIsCT && r.winner === 'CT') || (!aIsCT && r.winner === 'T');
+    if (aWon) scoreA++; else scoreB++;
+  });
+
+  // CSS vars inlined
+  const outerStyle = 'background:#1f2638;border:1px solid #263044;border-radius:8px;';
+
+  const leftCol = `<div style="width:120px;flex-shrink:0;padding-right:18px;display:flex;flex-direction:column;justify-content:space-between;padding-top:6px;padding-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:3px;height:18px;background:var(--team-a)"></div>
+        <div><div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.12em">${esc(nameA)}</div>
+        <div style="font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:800;color:var(--team-a);line-height:1;margin-top:2px">${scoreA}</div></div></div>
+      <div style="display:flex;align-items:center;gap:8px"><div style="width:3px;height:18px;background:var(--team-b)"></div>
+        <div><div style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:var(--muted);letter-spacing:0.12em">${esc(nameB)}</div>
+        <div style="font-family:Barlow Condensed,sans-serif;font-size:24px;font-weight:800;color:var(--team-b);line-height:1;margin-top:2px">${scoreB}</div></div></div>
+    </div>`;
+
+  // build halves
+  const halvesHtml = segments.map((seg,hi) => {
+    const segHtml = renderSegment(seg);
+    const sep = hi>0 ? `<div style="width:1px;background:var(--border);margin:0 8px;flex-shrink:0"></div>` : '';
+    return `${sep}<div style="flex:${seg.to - seg.from + 1};display:flex;flex-direction:column;min-width:0">${segHtml.top}${segHtml.nums}${segHtml.bot}${segHtml.label}</div>`;
+  }).join('');
+
+    const legend = `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #263044;display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;font-family:IBM Plex Mono,monospace;font-size:10px;color:var(--muted)">
+      <span style="font-family:Barlow Condensed,sans-serif;font-size:11px;font-weight:700;color:#3e4e6a;letter-spacing:0.18em">SPOSÓB ZWYCIĘSTWA</span>
+      <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:18px;height:18px;background:#252d42;border-radius:2;display:inline-flex;align-items:center;justify-content:center;color:#dde3f0">${reasonIcon('bomb_exploded')}</span> Bomba wybuchła</span>
+      <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:18px;height:18px;background:#252d42;border-radius:2;display:inline-flex;align-items:center;justify-content:center;color:#dde3f0">${reasonIcon('bomb_defused')}</span> Bomba rozbrojona</span>
+      <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:18px;height:18px;background:#252d42;border-radius:2;display:inline-flex;align-items:center;justify-content:center;color:#dde3f0">${reasonIcon('ct_killed')}</span> Wyeliminowani</span>
+      <span style="display:inline-flex;align-items:center;gap:7px"><span style="width:18px;height:18px;background:#252d42;border-radius:2;display:inline-flex;align-items:center;justify-content:center;color:#dde3f0">${reasonIcon('time_ran_out')}</span> Czas</span>
+      <span style="flex:0 0 auto;width:1px;height:14px;background:var(--border)"></span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="min-width:12px;height:12px;padding:0 4px;background:var(--gold);border-radius:6;display:inline-flex;align-items:center;justify-content:center;font-family:Barlow Condensed,sans-serif;font-size:8px;font-weight:900;color:#0d0d0d;line-height:1">ACE</span> ACE / clutch</span>
+      <span style="display:inline-flex;align-items:center;gap:6px"><span style="font-family:IBM Plex Mono,monospace;font-size:7px;font-weight:700;color:var(--gold);padding:1px 3px;border-radius:1px;border:1px solid var(--gold)">P</span> Pistol round</span>
+    </div>`;
+
+  return `<div class="card" style="${outerStyle}">
+    <div class="card-title">Przebieg meczu</div>
+    <div class="card-body" style="padding:22px;overflow-x:auto">
+      <div style="display:flex;--team-a:var(--ct-bg);--team-b:var(--t-bg);--gold:#F5C542;--muted:#7a8aaa;--border:#263044">
+        ${leftCol}
+        <div style="flex:1;min-width:0;display:flex;gap:0">${halvesHtml}</div>
+      </div>
+      ${legend}
+    </div>
+  </div>`;
+}
+
 function detailMeta(m, header, killCount, roundCount, hsRate) {
   const entries = [
-    ['Mapa',         m.map_name    || header.map_name    || '—'],
-    ['Serwer',       m.server_name || header.server_name || header.client_name || '—'],
-    ['Wersja',       m.patch_version || header.patch_version || '—'],
-    ['Rundy',        roundCount ?? m.total_rounds ?? '—'],
-    ['Zabójstwa',    killCount ?? '—'],
-    ['HS %',         hsRate != null ? `${hsRate}%` : '—'],
-    ['Przesłano',    fmtDate(m.uploaded_at)],
+    ['Mapa', m.map_name || header.map_name || '—'],
+    ['Serwer', m.server_name || header.server_name || header.client_name || '—'],
+    ['Wersja', m.patch_version || header.patch_version || '—'],
+    ['Rundy', roundCount ?? m.total_rounds ?? '—'],
+    ['Czas trwania', fmtDuration(m.duration_seconds)],
+    ['Zabójstwa', killCount ?? '—'],
+    ['HS %', hsRate != null ? `${hsRate}%` : '—'],
+    ['Przesłano', fmtDate(m.uploaded_at)],
     ...(m.uploaded_by ? [['Dodane przez', m.uploaded_by]] : []),
-    ['Plik',         m.filename || '—'],
+    ['Plik', m.filename || '—'],
   ];
   const rows = entries.map(([k, v]) => `<dt>${k}</dt><dd>${esc(String(v))}</dd>`).join('');
   return `<div class="card">
@@ -94,7 +249,7 @@ function detailMeta(m, header, killCount, roundCount, hsRate) {
 
 function detailRatings(ratings) {
   const ct = ratings.filter(p => p.team === 'CT');
-  const t  = ratings.filter(p => p.team === 'TERRORIST');
+  const t = ratings.filter(p => p.team === 'TERRORIST');
 
   function overviewRows(list) {
     return list.map(p => `<div class="ov-row">
@@ -109,9 +264,9 @@ function detailRatings(ratings) {
 
   function detailRows(list) {
     return list.map(p => {
-      const mk     = typeof p.multi_kills === 'string' ? JSON.parse(p.multi_kills || '{}') : (p.multi_kills || {});
-      const ctR    = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
-      const tR     = p.t_rating  != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>`  : '';
+      const mk = typeof p.multi_kills === 'string' ? JSON.parse(p.multi_kills || '{}') : (p.multi_kills || {});
+      const ctR = p.ct_rating != null ? `<span class="${rClass(p.ct_rating)}" style="font-size:.72rem">CT ${p.ct_rating.toFixed(2)}</span>` : '';
+      const tR = p.t_rating != null ? `<span class="${rClass(p.t_rating)}"  style="font-size:.72rem">T ${p.t_rating.toFixed(2)}</span>` : '';
       const clutch = p.clutch_total ? `${p.clutch_won}/${p.clutch_total}` : '';
       return `<div class="rating-row" style="flex-wrap:wrap;gap:.35rem">
         <span class="rating-row-name" title="${esc(p.name)}">${esc(p.name)}</span>
@@ -122,8 +277,8 @@ function detailRatings(ratings) {
           <span>KAST <b>${p.kast}%</b></span>
           ${p.flash_enemies ? `<span>Flash <b>${p.flash_enemies}</b></span>` : ''}
           ${clutch ? `<span>Clutch <b>${clutch}</b></span>` : ''}
-          ${p.knife_kills ? `<span>🔪 <b>${p.knife_kills}</b></span>` : ''}
-          ${p.zeus_kills  ? `<span>⚡ <b>${p.zeus_kills}</b></span>`  : ''}
+          ${p.knife_kills ? `<span style="display:inline-flex;align-items:center;gap:.25rem"><img src="/static/assets/icons/knife.svg" width="14" height="14"/><b>${p.knife_kills}</b></span>` : ''}
+          ${p.zeus_kills ? `<span style="display:inline-flex;align-items:center;gap:.25rem"><img src="/static/assets/icons/taser.svg" width="14" height="14"/><b>${p.zeus_kills}</b></span>` : ''}
         </span>
         <span style="display:flex;align-items:center;gap:.4rem;margin-left:auto">
           ${ctR} ${tR}
@@ -177,7 +332,7 @@ function collapsibleCard(id, title, content, cardStyle = '') {
 
 function toggleSection(id) {
   const body = document.getElementById(id);
-  const hdr  = document.getElementById('hdr-' + id);
+  const hdr = document.getElementById('hdr-' + id);
   if (!body) return;
   const open = body.classList.toggle('open');
   hdr.classList.toggle('open', open);
@@ -197,7 +352,7 @@ function detailOpeningDuels(ratings) {
   return collapsibleCard('sec-opening', 'Wejścia', content);
 }
 
-function detailFlashClutch(ratings) {
+function detailFlashClutch(ratings, clutchEvents) {
   const flashers = [...ratings]
     .filter(p => p.flash_enemies > 0)
     .sort((a, b) => b.flash_enemies - a.flash_enemies);
@@ -212,21 +367,86 @@ function detailFlashClutch(ratings) {
     <td>${p.flash_avg_dur != null ? Number(p.flash_avg_dur).toFixed(2) + 's' : '—'}</td>
   </tr>`).join('');
 
+  const flashCard = flashRows ? collapsibleCard('sec-flash', 'Efektywność flashy',
+    `<table><thead><tr><th>Gracz</th><th>Oślepieni</th><th>Śr. czas</th></tr></thead><tbody>${flashRows}</tbody></table>`) : '';
+
+  if (!clutchers.length) return flashCard;
+
+  const fmtCell = (bd, v) => {
+    if (!bd) return '<td>—</td>';
+    const entry = bd[String(v)];
+    if (!entry || entry[1] === 0) return '<td style="color:var(--muted)">—</td>';
+    const [won, total] = entry;
+    const cls = won === total ? 'style="color:var(--green)"' : won > 0 ? '' : 'style="color:var(--muted)"';
+    return `<td ${cls}>${won}/${total}</td>`;
+  };
+
   const clutchRows = clutchers.map(p => {
-    const pct = Math.round(p.clutch_won / p.clutch_total * 100);
+    const bd = typeof p.clutch_breakdown === 'string'
+      ? JSON.parse(p.clutch_breakdown || '{}')
+      : (p.clutch_breakdown || {});
+    const pct = p.clutch_total ? Math.round(p.clutch_won / p.clutch_total * 100) : 0;
     return `<tr>
       <td>${esc(p.name)}</td>
-      <td>${p.clutch_won}/${p.clutch_total}</td>
+      ${fmtCell(bd, 1)}
+      ${fmtCell(bd, 2)}
+      ${fmtCell(bd, 3)}
+      ${fmtCell(bd, 4)}
+      ${fmtCell(bd, 5)}
+      <td><b>${p.clutch_won}/${p.clutch_total}</b></td>
       <td>${pct}%</td>
     </tr>`;
   }).join('');
 
-  const flashCard = flashRows ? collapsibleCard('sec-flash', 'Efektywność flashy',
-    `<table><thead><tr><th>Gracz</th><th>Oślepieni</th><th>Śr. czas</th></tr></thead><tbody>${flashRows}</tbody></table>`) : '';
+  // Overall totals row
+  const totals = { 1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0], 5: [0, 0] };
+  let totalWon = 0, totalAll = 0;
+  clutchers.forEach(p => {
+    const bd = typeof p.clutch_breakdown === 'string'
+      ? JSON.parse(p.clutch_breakdown || '{}')
+      : (p.clutch_breakdown || {});
+    for (let v = 1; v <= 5; v++) {
+      const e = bd[String(v)];
+      if (e) { totals[v][0] += e[0]; totals[v][1] += e[1]; }
+    }
+    totalWon += p.clutch_won || 0;
+    totalAll += p.clutch_total || 0;
+  });
+  const totalPct = totalAll ? Math.round(totalWon / totalAll * 100) : 0;
+  const totalsRow = `<tr style="border-top:1px solid var(--border);font-weight:600;color:var(--muted)">
+    <td>RAZEM</td>
+    ${[1, 2, 3, 4, 5].map(v => totals[v][1] ? `<td>${totals[v][0]}/${totals[v][1]}</td>` : '<td>—</td>').join('')}
+    <td><b>${totalWon}/${totalAll}</b></td>
+    <td>${totalPct}%</td>
+  </tr>`;
 
-  const clutchCard = clutchRows ? collapsibleCard('sec-clutch', 'Clutch (1vX)',
-    `<table><thead><tr><th>Gracz</th><th>Wygrane/Razem</th><th>Wygr%</th></tr></thead><tbody>${clutchRows}</tbody></table>`) : '';
+  const clutchTable = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Gracz</th><th>1v1</th><th>1v2</th><th>1v3</th><th>1v4</th><th>1v5</th>
+      <th>Razem</th><th>Wygr%</th>
+    </tr></thead>
+    <tbody>${clutchRows}${totalsRow}</tbody>
+  </table></div>`;
 
+  // Events list
+  let eventsHtml = '';
+  if (clutchEvents && clutchEvents.length) {
+    const evRows = clutchEvents.map(e => {
+      const wonCls = e.won ? 'style="color:var(--green)"' : 'style="color:var(--red)"';
+      return `<tr>
+        <td>R${e.round}</td>
+        <td>${esc(e.name)}</td>
+        <td>1v${e.vs}</td>
+        <td ${wonCls}>${e.won ? 'WON' : 'lost'}</td>
+      </tr>`;
+    }).join('');
+    eventsHtml = `<div class="table-wrap" style="margin-top:1rem"><table>
+      <thead><tr><th>Runda</th><th>Gracz</th><th>Sytuacja</th><th>Wynik</th></tr></thead>
+      <tbody>${evRows}</tbody>
+    </table></div>`;
+  }
+
+  const clutchCard = collapsibleCard('sec-clutch', 'Clutch (1vX)', clutchTable + eventsHtml);
   return flashCard + clutchCard;
 }
 
@@ -333,7 +553,7 @@ function detailRaw(data) {
   }, null, 2);
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(blob);
 
   return `<div class="card">
     <div class="card-title" style="display:flex;align-items:center;gap:1rem">
