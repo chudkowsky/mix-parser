@@ -168,6 +168,12 @@ async def parse(
         save_to.unlink(missing_ok=True)
         raise HTTPException(500, f"Parse error: {exc}") from exc
 
+    # Snapshot ranks before this match changes them
+    database.snapshot_ranks(conn, season_id=None)
+    active_season = database.get_active_season(conn)
+    if active_season:
+        database.snapshot_ranks(conn, season_id=active_season["id"])
+
     match_id = database.insert_match(conn, name, result, file_hash, uploaded_by)
     database.insert_player_ratings(conn, match_id, result["ratings"])
     conn.commit()

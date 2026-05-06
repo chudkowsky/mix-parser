@@ -159,8 +159,24 @@ function leaderboardCard(lb) {
     ${th('Mapy',     'matches_played')}
   </tr></thead>`;
 
+  // ── Rank change indicator (prev_rank comes from server, set before match insert) ─
+  const ratingRanked = [...players].sort((a, b) => (b.avg_rating ?? -Infinity) - (a.avg_rating ?? -Infinity));
+  const currentRank = {};
+  ratingRanked.forEach((p, i) => { currentRank[p.steamid] = i + 1; });
+
+  const rankChange = (p) => {
+    if (_lbSort.key !== 'avg_rating') return '';
+    const prev = p.prev_rank;
+    const curr = currentRank[p.steamid];
+    if (prev == null || prev === curr) return '';
+    const delta = prev - curr;
+    const color = delta > 0 ? 'var(--green)' : 'var(--red)';
+    const arrow = delta > 0 ? '▲' : '▼';
+    return `<span style="color:${color};font-size:0.65rem;font-weight:700;margin-left:3px">${arrow}${Math.abs(delta)}</span>`;
+  };
+
   const buildRows = (list) => sorted(list).map((p, i) => `<tr>
-    <td class="rank">#${i + 1}</td>
+    <td class="rank">#${i + 1}${rankChange(p)}</td>
     <td class="player-name" style="cursor:pointer;color:var(--accent)" onclick="navigate('player/${p.steamid}')">
       ${p.avatar ? `<img class="player-avatar-sm" src="${esc(p.avatar)}" alt="">` : ''}${esc(p.name || p.steamid)}${titleBadges(p.steamid)}
     </td>

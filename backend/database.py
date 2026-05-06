@@ -97,6 +97,13 @@ def init_db(db_path: Path, data_dir: Path) -> None:
             avatarfull   TEXT,
             fetched_at   TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS lb_rank_snapshots (
+            steamid   TEXT    NOT NULL,
+            season_id INTEGER,
+            rank      INTEGER NOT NULL,
+            PRIMARY KEY (steamid, season_id)
+        );
     """)
     # Migrate existing DBs — add any missing columns
     existing_matches = {r[1] for r in conn.execute("PRAGMA table_info(matches)")}
@@ -457,6 +464,53 @@ def delete_match(conn: sqlite3.Connection, match_id: int, data_dir: Path) -> boo
 REGULAR_PLAYER_MIN_MATCHES = 5
 
 
+def snapshot_ranks(conn: sqlite3.Connection, season_id: int | None = None) -> None:
+    """Save current rating-sorted ranks before a new match is added."""
+    if season_id is None:
+        rows = conn.execute(
+            """SELECT steamid,
+                      ROUND(SUM(rating * rounds_played) / SUM(rounds_played), 4) AS avg_rating
+               FROM player_ratings GROUP BY steamid ORDER BY avg_rating DESC"""
+        ).fetchall()
+    else:
+        season = get_season(conn, season_id)
+        if not season:
+            return
+        start = season["start_date"]
+        end   = season["end_date"] or datetime.now(timezone.utc).isoformat()
+        rows  = conn.execute(
+            """SELECT pr.steamid,
+                      ROUND(SUM(pr.rating * pr.rounds_played) / SUM(pr.rounds_played), 4) AS avg_rating
+               FROM player_ratings pr
+               JOIN matches m ON m.id = pr.match_id
+               WHERE m.uploaded_at >= ? AND m.uploaded_at <= ?
+               GROUP BY pr.steamid ORDER BY avg_rating DESC""",
+            (start, end),
+        ).fetchall()
+
+    sid_val = season_id  # None stored as NULL
+    for rank, row in enumerate(rows, start=1):
+        conn.execute(
+            """INSERT INTO lb_rank_snapshots (steamid, season_id, rank)
+               VALUES (?, ?, ?)
+               ON CONFLICT(steamid, season_id) DO UPDATE SET rank=excluded.rank""",
+            (row["steamid"], sid_val, rank),
+        )
+    conn.commit()
+
+
+def _attach_prev_ranks(players: list[dict], conn: sqlite3.Connection, season_id: int | None) -> None:
+    if not players:
+        return
+    rows = conn.execute(
+        "SELECT steamid, rank FROM lb_rank_snapshots WHERE season_id IS ?",
+        (season_id,),
+    ).fetchall()
+    prev = {r["steamid"]: r["rank"] for r in rows}
+    for p in players:
+        p["prev_rank"] = prev.get(p["steamid"])
+
+
 def get_leaderboard(conn: sqlite3.Connection) -> dict:
     rows = conn.execute("""
         SELECT
@@ -488,6 +542,8 @@ def get_leaderboard(conn: sqlite3.Connection) -> dict:
     all_rows = [dict(r) for r in rows]
     players = [r for r in all_rows if r["matches_played"] >= REGULAR_PLAYER_MIN_MATCHES]
     guests  = [r for r in all_rows if r["matches_played"] <  REGULAR_PLAYER_MIN_MATCHES]
+    _attach_prev_ranks(players, conn, None)
+    _attach_prev_ranks(guests,  conn, None)
     return {"players": players, "guests": guests}
 
 
@@ -589,6 +645,7 @@ def get_season_leaderboard(conn: sqlite3.Connection, season_id: int) -> dict | N
     """, (start, end, min_matches)).fetchall()
 
     all_rows = [dict(r) for r in rows]
+    _attach_prev_ranks(all_rows, conn, season_id)
     return {
         "players":       all_rows,
         "guests":        [],
